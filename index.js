@@ -7,8 +7,14 @@ const REFERENCE_PLAYHEAD = process.env.REFERENCE_PLAYHEAD || '0';
 const LATENCY_TARGET = process.env.LATENCY_TARGET || '1000'; // ms, default example
 
 app.use((req, res, next) => {
-  const syncKey = `${REFERENCE_PLAYHEAD};${REFERENCE_TIMESTAMP};${LATENCY_TARGET}`;
-  res.setHeader('sync-key', syncKey);
+  const syncInfo = `${LATENCY_TARGET},${REFERENCE_PLAYHEAD},${REFERENCE_TIMESTAMP}`;
+
+  // Add CMSD headers
+  res.setHeader(
+    'CMSD-Dynamic',
+    `com.svta-syncinfo="${syncInfo}"`
+  );
+
   next();
 });
 
