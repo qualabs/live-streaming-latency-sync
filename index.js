@@ -23,7 +23,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).end();
 });
 
