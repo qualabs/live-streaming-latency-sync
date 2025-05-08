@@ -6,6 +6,7 @@
 
     <script src="./dist/modern/umd/dash.all.debug.js"></script>
     <script src="./playerSynchronizationPlugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <!-- Bootstrap core CSS -->
     <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
@@ -53,6 +54,7 @@
                         var p = eval('player' + i);
                         document.querySelector('#video' + i + 'delay').innerHTML = parseFloat(p.getCurrentLiveLatency(), 10);
                         document.querySelector('#video' + i + 'buffer').innerHTML = p.getBufferLength() + 's';
+                        document.querySelector('#video' + i + 'rate').innerHTML = p.getPlaybackRate().toFixed(2);
                     }
                 }, 1000);
             });
@@ -65,8 +67,8 @@
         }
 
         video {
-            width: 320px;
-            height: 180px;
+            width: 462px;
+            height: 260px;
         }
 
         .clock {
@@ -84,19 +86,6 @@
                  src="./lib/img/dashjs-logo.png"
                  width="200">
         </header>
-        <div class="row">
-            <div class="input-group">
-                <button id="load-button" type="button" class="btn btn-primary" aria-haspopup="true" aria-expanded="false">Load</button>
-                <select id="url-select" class="dropdown-toggle">
-                    <option
-                        value="https://livesim.dashif.org/livesim2/WAVE/vectors/cfhd_sets/12.5_25_50/t1/2022-10-17/stream.mpd">
-                        Live Sim</option>
-                    <option value="https://cmafref.akamaized.net/cmaf/live-ull/2006350/akambr/out.mpd">Low latency Live
-                    </option>
-                </select>
-                <input id="custom-url" type="text" class="form-control" placeholder="Paste your own DASH manifest URL here" style="max-width: 350px; margin-left: 8px;">
-            </div>
-        </div>
         <div class="row margin-top-row">
             <div class="col-md-8">
                 <div class="h-100 p-5 bg-light border rounded-3">
@@ -114,6 +103,19 @@
             </div>
         </div>
         <div class="row margin-top-row">
+            <div class="input-group">
+                <button id="load-button" type="button" class="btn btn-primary" aria-haspopup="true" aria-expanded="false">Load</button>
+                <select id="url-select" class="dropdown-toggle">
+                    <option
+                        value="https://livesim.dashif.org/livesim2/WAVE/vectors/cfhd_sets/12.5_25_50/t1/2022-10-17/stream.mpd">
+                        Live Sim</option>
+                    <option value="https://cmafref.akamaized.net/cmaf/live-ull/2006350/akambr/out.mpd">Low latency Live
+                    </option>
+                </select>
+                <input id="custom-url" type="text" class="form-control" placeholder="Paste your own DASH manifest URL here" style="margin-left: 8px;">
+            </div>
+        </div>
+        <div class="row margin-top-row">
             <div class="col-md-6">
                 <div class="h-100 p-5 border rounded-3">
                     <h5> Player 1</h5>
@@ -124,6 +126,7 @@
                                 id="video1delay"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span
                                 id="video1buffer"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="video1rate"></span></div>
                         </div>
                     </div>
                 </div>
@@ -138,9 +141,19 @@
                                 id="video2delay"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span
                                 id="video2buffer"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="video2rate"></span></div>
                         </div>
+                        
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6">
+                <canvas id="metric-chart-player1" style="height: 300px;"></canvas>
+            </div>
+            <div class="col-lg-6">
+                <canvas id="metric-chart-player2" style="height: 300px;"></canvas>
             </div>
         </div>
         <div class="row">
@@ -156,7 +169,63 @@
 <script class="code">
     document.addEventListener('DOMContentLoaded', function () {
         init();
+        setupCharts();
     });
+
+    function setupCharts() {
+        setupChart('metric-chart-player1', player1);
+        setupChart('metric-chart-player2', player2);
+    }
+
+    function setupChart(chartId, player) {
+        const data = {
+            datasets: [
+                { label: 'Live delay', borderColor: '#3944bc', backgroundColor: '#3944bc' },
+                { label: 'Buffer level', borderColor: '#d0312d', backgroundColor: '#d0312d' },
+                { label: 'Playback rate', borderColor: '#3cb043', backgroundColor: '#3cb043' }
+            ]
+        };
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                scales: {
+                    y: { min: 0, ticks: { stepSize: 0.5 }, title: { display: true, text: 'Value in Seconds' } },
+                    x: { title: { display: true, text: 'Time (s)' } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Live Data Metrics' }
+                }
+            }
+        };
+        const chart = new Chart(document.getElementById(chartId), config);
+
+        setInterval(() => {
+            if (player && player.isReady()) {
+                const dashMetrics = player.getDashMetrics();
+                const labels = chart.data.labels;
+                const datasets = chart.data.datasets;
+
+                if (labels.length > 30) labels.shift();
+                labels.push((labels.length + 1).toString());
+
+                if (datasets[0].data.length > 30) datasets[0].data.shift();
+                datasets[0].data.push(parseFloat(player.getCurrentLiveLatency()).toFixed(2));
+
+                if (datasets[1].data.length > 30) datasets[1].data.shift();
+                datasets[1].data.push(parseFloat(dashMetrics.getCurrentBufferLevel('video')).toFixed(2));
+
+                if (datasets[2].data.length > 30) datasets[2].data.shift();
+                datasets[2].data.push(parseFloat(player.getPlaybackRate()).toFixed(2));
+
+                chart.update();
+            }
+        }, 1000);
+    }
 </script>
 <script src="./highlighter.js"></script>
 </body>
