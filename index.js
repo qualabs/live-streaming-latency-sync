@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 const LATENCY_TARGETS = process.env.LATENCY_TARGET || '3,6,9';
 let latencyTarget = process.env.LATENCY_TARGET || '12';
 
-app.use(express.json()); // Middleware to parse JSON request bodies
+app.use(express.json());
 
 app.use((req, res, next) => {
   res.setHeader(
@@ -31,6 +31,7 @@ app.post('/update-latency', (req, res) => {
   const { latency } = req.body;
   if (latency) {
     latencyTarget = latency;
+    // Add custom logic to select latency target based.
     res.json({ message: 'Latency target updated', latency: latencyTarget });
   } else {
     res.status(400).json({ error: 'Missing latency parameter in request body' });
