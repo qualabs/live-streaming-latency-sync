@@ -62,7 +62,7 @@ LATENCY_TARGET=12
 ```html
 
  <!-- Import the player sync plugin  -->
- <script src="./playerSynchronizationPlugin.js"><script>
+ <script src="./playerSynchronizationPlugin.js"></script>
  
  <script class="code">
    let player, video;
@@ -75,7 +75,7 @@ LATENCY_TARGET=12
       globalSync: true,
          url: 'http://localhost:3000/'
    });
- <script>
+ </script>
 ``` 
 
 ## How it works
