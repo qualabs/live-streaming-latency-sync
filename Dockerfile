@@ -5,8 +5,6 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 
-COPY .env ./
-
 COPY index.js ./
 
 EXPOSE 3000

@@ -7,9 +7,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    environment:
-      - PORT=3000
-      - LATENCY_TARGET=3,6,9
+    env_file:
+      - .env
     volumes:
       - .:/app
     command: ["npm", "start"]
