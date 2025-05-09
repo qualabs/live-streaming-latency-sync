@@ -56,8 +56,8 @@ The server uses the following environment variables:
 Example .env file:
 
 ```bash
-PORT=3000;
-LATENCY_TARGETS=3,8,12;
+PORT=3000
+LATENCY_TARGETS=3,8,12
 LATENCY_TARGET=12
 ```
 
