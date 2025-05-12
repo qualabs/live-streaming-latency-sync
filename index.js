@@ -34,6 +34,13 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
+  const queryIndex = req.url.indexOf('?');
+  if (queryIndex !== -1) {
+    const queryString = decodeURIComponent(req.url.substring(queryIndex + 1));
+    const currentLatencyTarget = queryString.match(/com\.svta-latency="([^"]+)"/)[1];
+    // Add here custom latency target to the response header.
+  }
+
   res.status(200).end();
 });
 
@@ -41,7 +48,6 @@ app.post('/update-latency', (req, res) => {
   const { latency } = req.body;
   if (latency) {
     latencyTarget = latency;
-    // Add custom logic to select latency target based.
     res.json({ message: 'Latency target updated', latency: latencyTarget });
   } else {
     res.status(400).json({ error: 'Missing latency parameter in request body' });

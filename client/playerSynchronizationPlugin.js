@@ -5,6 +5,8 @@ let playbackRate;
 
 let lastInterval;
 
+let currentTarget = null;
+
 (() => {
     const syncPlayer = (player, config) => {
         if (!leaderTimestamp || !leaderPlayhead || !playbackRate) {
@@ -107,6 +109,22 @@ let lastInterval;
     }
 
     const globalSyncInterceptor = (player) => {
+        player.addRequestInterceptor((request) => {
+            const { cmcd } = request;
+            if (!cmcd) {
+                return Promise.resolve(request);
+            }
+            
+            console.log('cmcd', cmcd, currentTarget);
+            if (cmcd && currentTarget) {
+                const customKey = 'com.svta-latency';
+                const customKeyValue = currentTarget;
+                cmcd[customKey] = customKeyValue;
+                request.url += encodeURIComponent(`,${customKey}="${customKeyValue}"`);
+            }
+            return Promise.resolve(request);
+        });
+
         player.addResponseInterceptor((response) => {
             if (response.request.customData.request.type !== 'CmcdResponse') {
                 return Promise.resolve(response);
@@ -116,6 +134,7 @@ let lastInterval;
             if (cmsdData) {
                 const { latency } = cmsdData;
                 if (latency) {
+                    currentTarget = latency;
                     player.updateSettings({
                         streaming: {
                             delay: {
