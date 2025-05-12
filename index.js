@@ -7,14 +7,24 @@ let latencyTarget = process.env.LATENCY_TARGET || '12';
 
 app.use(express.json());
 
+// Add CORS middleware
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Expose-Headers', 'Cmsd-Dynamic');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   res.setHeader(
     'Cmsd-Dynamic',
     `com.svta-latency="${latencyTarget}"` +
     `,com.svta-latency-targets="${LATENCY_TARGETS}"`
   );
-
-  res.setHeader('Access-Control-Expose-Headers', 'Cmsd-Dynamic');
 
   next();
 });
