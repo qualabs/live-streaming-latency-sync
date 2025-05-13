@@ -1,5 +1,6 @@
 import express from 'express';
 import parseCMCDQueryToJson from './parseCMCDQueryToJson.js';
+import { savePlayerData, getPlayerData, clearAllData } from './datastore.js';
 
 const app = express();
 
@@ -40,14 +41,28 @@ app.get('/sync', (req, res) => {
   // Pase CMCD query to JSON
   console.log("Received CMCD:", req.query['CMCD']);
   const cmcdData = parseCMCDQueryToJson(req.query['CMCD']);
-  const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
-  
+  savePlayerData(cmcdData);
+
   //CHANGEME: Set the latency target based on the CMCD data and business logic
+  // const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
   const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}"`;
   res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
   console.log("Sending CMSD Dynamic Header:", CMSDDynamicValue);
   //CHANGEME: End
 
+  res.status(200).end();
+});
+
+app.get('/player-data', (req, res) => {
+  // Get player data
+  const playerData = getPlayerData();
+  res.json(playerData);
+  res.status(200).end();
+});
+
+app.get('/clear-player-data', (req, res) => {
+  // Get player data
+  clearAllData();
   res.status(200).end();
 });
 

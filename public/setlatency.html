@@ -6,11 +6,12 @@ Notice: This web page was generated using Gemini 2.5 Pro
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Update Latency</title>
+    <title>Update Latency & View Chart</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Use Inter font */
         body {
@@ -33,66 +34,79 @@ Notice: This web page was generated using Gemini 2.5 Pro
             border: 1px solid #fca5a5; /* border border-red-300 */
             color: #991b1b; /* text-red-800 */
         }
+        /* Ensure canvas is responsive within its container */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px; /* Adjust as needed, or use aspect-ratio */
+        }
+
+        /* Add some padding to the body to prevent content from sticking to edges */
+        body {
+            padding-top: 2rem; /* py-8 equivalent for top */
+            padding-bottom: 2rem; /* py-8 equivalent for bottom */
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 flex flex-col items-center justify-start min-h-screen">
 
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md mb-8">
         <h1 class="text-2xl font-bold mb-6 text-center text-gray-700">Update Latency Configuration</h1>
-
         <form id="latency-form" class="space-y-4">
             <div>
                 <label for="latencyTarget" class="block text-sm font-medium text-gray-700 mb-1">Latency Target (e.g., 12):</label>
                 <input type="text" id="latencyTarget" name="latencyTarget" required
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                       placeholder="Loading..."> </div>
-
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Loading...">
+            </div>
             <div>
                 <label for="latencyTargets" class="block text-sm font-medium text-gray-700 mb-1">Latency Targets (e.g., 3,6,9):</label>
                 <input type="text" id="latencyTargets" name="latencyTargets" required
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                       placeholder="Loading..."> </div>
-
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Loading...">
+            </div>
             <button type="submit"
-                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                 Update Latency
             </button>
         </form>
-
         <div id="message-area" class="mt-6">
             </div>
     </div>
 
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-4xl"> <h2 class="text-xl font-bold mb-4 text-center text-gray-700">Real-time Player Latency</h2>
+        <div class="chart-container">
+            <canvas id="latencyChartCanvas"></canvas>
+        </div>
+        <div id="chart-message-area" class="mt-4 text-sm text-center text-gray-600">
+        </div>
+        <form id="clear-data-form" class="space-y-4">
+            <button type="submit"
+                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                Clear Chart
+            </button>
+        </form>
+    </div>
+
     <script>
-        // Get references to DOM elements
+        // --- Existing code for Latency Configuration Form ---
         const form = document.getElementById('latency-form');
+        const clearDataForm = document.getElementById('clear-data-form');
         const latencyTargetInput = document.getElementById('latencyTarget');
         const latencyTargetsInput = document.getElementById('latencyTargets');
         const messageArea = document.getElementById('message-area');
 
-        // Backend server URLs (adjust port if necessary)
-        // Assumes the Node.js server is running on the same machine on port 3000
         const updateUrl = '/update-latency';
-        const getUrl = '/get-latency'; // URL for the new endpoint
+        const getUrl = '/get-latency';
 
-        /**
-         * Displays a message in the message area.
-         * @param {string} text - The message text to display.
-         * @param {'success' | 'error'} type - The type of message ('success' or 'error').
-         */
-        function displayMessage(text, type) {
+        function displayMessage(text, type, area = messageArea) {
             const messageDiv = document.createElement('div');
             messageDiv.textContent = text;
-            // Apply appropriate CSS classes based on the message type
             messageDiv.className = `message message-${type}`;
-            // Clear previous messages before adding a new one
-            messageArea.innerHTML = '';
-            messageArea.appendChild(messageDiv);
+            area.innerHTML = ''; // Clear previous messages
+            area.appendChild(messageDiv);
         }
 
-        /**
-         * Fetches initial latency values from the server and populates the form.
-         */
         async function loadInitialValues() {
             try {
                 // Send POST request to the /get-latency endpoint
@@ -136,66 +150,201 @@ Notice: This web page was generated using Gemini 2.5 Pro
             }
         }
 
-        // Add event listener for form submission (Update operation)
         form.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent default form submission
-
-            // Clear previous messages before making the request
+            event.preventDefault();
             messageArea.innerHTML = '';
-
-            // Get values from input fields
             const latencyTarget = latencyTargetInput.value.trim();
             const latencyTargets = latencyTargetsInput.value.trim();
 
-            // Basic validation (ensure fields are not empty)
             if (!latencyTarget || !latencyTargets) {
                 displayMessage('Please fill in both fields.', 'error');
                 return;
             }
 
-            // Prepare the data payload for the POST request
             const data = {
                 latencyTarget: latencyTarget,
-                latencyTargets: latencyTargets
+                // Assuming server expects latencyTargets as a string or an array.
+                // If string: latencyTargets: latencyTargets
+                // If array: latencyTargets: latencyTargets.split(',').map(s => s.trim()).filter(s => s)
+                latencyTargets: latencyTargets, // Send as string, server can parse
             };
 
             try {
-                // Send POST request to the server using fetch API
                 const response = await fetch(updateUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', // Indicate we're sending JSON
-                    },
-                    body: JSON.stringify(data), // Convert JS object to JSON string
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
                 });
-
-                // Parse the JSON response from the server
                 const result = await response.json();
-
-                // Check if the request was successful (HTTP status 200-299)
                 if (response.ok) {
-                    // Display success message from the server response
                     let successMsg = result.message || 'Latency updated successfully.';
                     if (result.latency && result.latencyTargets) {
-                        successMsg += ` New Target: ${result.latency}, New Targets: ${result.latencyTargets}`;
+                        successMsg += ` New Target: ${result.latency}, New Targets: ${Array.isArray(result.latencyTargets) ? result.latencyTargets.join(', ') : result.latencyTargets}`;
                     }
                     displayMessage(successMsg, 'success');
                 } else {
-                    // Display error message from the server response
                     const errorMsg = result.error || `Server responded with status: ${response.status}`;
                     displayMessage(errorMsg, 'error');
                 }
-
             } catch (error) {
-                // Handle network errors or issues connecting to the server
                 console.error('Error sending update request:', error);
-                displayMessage(`Failed to connect to the server for update. Is it running at ${updateUrl}? Error: ${error.message}`, 'error');
+                displayMessage(`Failed to connect to the server for update. Error: ${error.message}`, 'error');
             }
         });
 
-        // --- Load initial values when the page content is loaded ---
+        clearDataForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            messageArea.innerHTML = '';
+            try {
+                // Clear the chart data by sending a request to the server
+                const response = await fetch('/clear-player-data', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } catch (error) {
+                console.error('Error clearing chart data:', error);
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', loadInitialValues);
 
+        // --- New code for Real-time Latency Chart ---
+        const chartCanvas = document.getElementById('latencyChartCanvas');
+        const chartMessageArea = document.getElementById('chart-message-area');
+        let latencyChart = null;
+        const playerDataUrl = window.location.origin + '/player-data';
+        const CHART_UPDATE_INTERVAL_MS = 1000; // Update every 1 second
+        const DATA_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+
+        // Predefined colors for session lines
+        const sessionColors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+            '#9966FF', '#FF9F40', '#C9CBCF', '#F7464A',
+            '#46BFBD', '#FDB45C', '#7FFF00', '#D2691E'
+        ];
+        let colorIndex = 0;
+        const assignedSessionColors = {}; // To keep colors consistent for sessions
+
+        function getSessionColor(sessionId) {
+            if (!assignedSessionColors[sessionId]) {
+                assignedSessionColors[sessionId] = sessionColors[colorIndex % sessionColors.length];
+                colorIndex++;
+            }
+            return assignedSessionColors[sessionId];
+        }
+
+        function initializeChart() {
+            if (!chartCanvas) {
+                console.error('Chart canvas element not found!');
+                chartMessageArea.textContent = 'Error: Chart canvas not found.';
+                return;
+            }
+            const ctx = chartCanvas.getContext('2d');
+            latencyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [] // Datasets will be populated dynamically
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear', // Using linear scale for playerReportTime (ms)
+                            title: {
+                                display: true,
+                                text: 'Player Report Time from now (s)'
+                            },
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    return value.toLocaleString(); // Format large numbers
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Latency (ms)'
+                            },
+                            //beginAtZero: true // Start y-axis at 0
+                        }
+                    },
+                    animation: {
+                        duration: 0 // Disable animation for faster updates if needed, or keep for smoothness
+                    }
+                }
+            });
+            chartMessageArea.textContent = 'Loading chart data...';
+        }
+
+        async function fetchAndUpdateChartData() {
+            if (!latencyChart) return;
+
+            try {
+                const response = await fetch(playerDataUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const rawData = await response.json();
+
+                const now = Date.now();
+                const fiveMinutesAgo = now - DATA_MAX_AGE_MS;
+                const newDatasets = [];
+
+                if (Object.keys(rawData).length === 0) {
+                     chartMessageArea.textContent = 'No player data received yet. Waiting for data...';
+                } else {
+                    chartMessageArea.textContent = ''; // Clear message if data is present
+                }
+
+                for (const sessionId in rawData) {
+                    if (Object.hasOwnProperty.call(rawData, sessionId)) {
+                        const sessionDataPoints = rawData[sessionId];
+
+                        // Filter data points by serverTimestamp (last 5 minutes)
+                        // And map to {x, y} format for Chart.js, sorted by playerReportTime
+                        const filteredAndMappedPoints = sessionDataPoints
+                            .filter(dp => dp.serverTimestamp >= fiveMinutesAgo)
+                            .map(dp => ({
+                                x: -(new Date() - new Date(dp.playerReportTime))/1000, // PlayerReportTime on X-axis
+                                y: dp.latency          // Latency on Y-axis
+                            }))
+                            .sort((a, b) => a.x - b.x); // Sort by x-value for correct line rendering
+
+                        if (filteredAndMappedPoints.length > 0) {
+                            newDatasets.push({
+                                label: sessionId,
+                                data: filteredAndMappedPoints,
+                                borderColor: getSessionColor(sessionId),
+                                backgroundColor: getSessionColor(sessionId) + '33', // Lighter fill, optional
+                                fill: false, // No fill under the line
+                                tension: 0.1 // Slight curve to the line
+                            });
+                        }
+                    }
+                }
+
+                latencyChart.data.datasets = newDatasets;
+                latencyChart.update('none'); // 'none' for no animation during update
+
+            } catch (error) {
+                console.error('Error fetching or updating chart data:', error);
+                chartMessageArea.textContent = `Error updating chart: ${error.message}. Retrying...`;
+                // Optionally, clear datasets if error persists or show stale data indicator
+                // latencyChart.data.datasets = [];
+                // latencyChart.update('none');
+            }
+        }
+
+        // Initialize chart and start periodic updates when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeChart();
+            if (latencyChart) {
+                fetchAndUpdateChartData(); // Initial fetch
+                setInterval(fetchAndUpdateChartData, CHART_UPDATE_INTERVAL_MS);
+            }
+        });
     </script>
 
 </body>
