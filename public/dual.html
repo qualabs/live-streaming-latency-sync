@@ -24,7 +24,7 @@
             player1.initialize(video,'' ,true);
             playerSynchronization.addFollower(player1, {
                 globalSync: true,
-                url: 'http://localhost:3000/sync'
+                url: '/sync'
             });
 
             video = document.querySelector('#video2');
@@ -34,7 +34,7 @@
             player2.initialize(video, '', true);
             playerSynchronization.addFollower(player2, {
                 globalSync: true,
-                url: 'http://localhost:3000/sync'
+                url: '/sync'
             });
 
             const loadButton = document.getElementById('load-button');
