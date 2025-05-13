@@ -7,9 +7,9 @@ Configure aws using `aws configure`
 
 ## Useful commands
 
-* `npx cdk deploy`       deploy this stack to your default AWS account/region
-* `npx cdk diff`         compare deployed stack with current state
-* `npx cdk synth`        emits the synthesized CloudFormation template
+* `cdk deploy`       deploy this stack to your default AWS account/region
+* `cdk diff`         compare deployed stack with current state
+* `cdk synth`        emits the synthesized CloudFormation template
 
 ## Fist time to deploy in a AWS account
 If it's the first time you are going to deploy somghint using cdk in a particualr AWS account, first you must run `cdk bootstrap`
