@@ -71,8 +71,7 @@ let currentTarget = null;
                         enabled: true,
                         cmcdMode: 'response',
                         mode: CMCD_MODE_QUERY,
-                        interval: 5000,
-                        enabledKeys: ['sid', 'cid', 'pr', 'pt', 'ts'],
+                        //enabledKeys: ['sid', 'cid', 'pr', 'pt', 'ts'],
                         url: config.url,
                         method: 'POST',
                     }],
@@ -115,13 +114,13 @@ let currentTarget = null;
                 return Promise.resolve(request);
             }
             
-            console.log('cmcd', cmcd, currentTarget);
             if (cmcd && currentTarget) {
                 const customKey = 'com.svta-latency';
                 const customKeyValue = currentTarget;
                 cmcd[customKey] = customKeyValue;
                 request.url += encodeURIComponent(`,${customKey}="${customKeyValue}"`);
             }
+            console.log('Sending CMCD:', cmcd);
             return Promise.resolve(request);
         });
 
@@ -131,6 +130,7 @@ let currentTarget = null;
             }
 
             const cmsdData = parseCMSDHeader(response);
+            console.log('Received CMSD:', cmsdData);
             if (cmsdData) {
                 const { latency } = cmsdData;
                 if (latency) {

@@ -19,30 +19,31 @@ This project demonstrates global synchronization for media playback. It includes
    ```bash
    npm run start
    ```
-3. Open the `index.html` file in the client folder in your browser to start the client.
+3. Open the [the demo site](http://localhost:3000)` in your browser to test the sync service.
 
 ### Running with Docker
-1. Copy the `.env-example` file and rename it to `.env`. Update the variables as needed.
+1. (Optional) Copy the `.env-example` file and rename it to `.env`. Update the variables as needed.
 
 2. Build and start the services using Docker Compose:
    ```bash
-   docker-compose up --build
+   docker-compose up
    ```
 
 3. Access the services:
-   - Server: [http://localhost:3000](http://localhost:3000)
-   - Client: [http://localhost:3001](http://localhost:3001)
+   - Sample Player: [http://localhost:3000](http://localhost:3000)
+   - Dual Player: [http://localhost:3000/dual.html](http://localhost:3000/dual.html)
+   - Set the latency page: [http://localhost:3000/setlatency.html](http://localhost:3000/update-latency)
 
 ## Server API
 Endpoint: `/update-latency`
 
-The server exposes an endpoint to dynamically update the latency target.
+The server exposes an endpoint to dynamically update the latency target. To set the latency you can use [the update latency site](http://localhost:3000/update-latency) or a curl command:
 
 ### Example:
 ```bash
 curl -X POST http://localhost:3000/update-latency \
 -H "Content-Type: application/json" \
--d '{"latency": 8}'
+-d '{latencyTarget: "6", latencyTargets: "3,6,9"}'
 ```
 
 ### Environment Variables
@@ -77,7 +78,7 @@ The client uses Dash.js with a custom synchronization plugin. Below is an exampl
    // Set the follower client with the global sync flag and the server sync url/
    playerSynchronization.addFollower(player, {
       globalSync: true,
-         url: 'http://localhost:3000/'
+         url: 'http://localhost:3000/sync'
    });
  </script>
 ``` 

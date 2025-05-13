@@ -1,0 +1,202 @@
+<!-- 
+Notice: This web page was generated using Gemini 2.5 Pro
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Latency</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Use Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Basic styling for message boxes */
+        .message {
+            padding: 0.75rem; /* p-3 */
+            margin-top: 1rem; /* mt-4 */
+            border-radius: 0.375rem; /* rounded-md */
+            font-size: 0.875rem; /* text-sm */
+        }
+        .message-success {
+            background-color: #d1fae5; /* bg-green-100 */
+            border: 1px solid #6ee7b7; /* border border-green-300 */
+            color: #065f46; /* text-green-800 */
+        }
+        .message-error {
+            background-color: #fee2e2; /* bg-red-100 */
+            border: 1px solid #fca5a5; /* border border-red-300 */
+            color: #991b1b; /* text-red-800 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-700">Update Latency Configuration</h1>
+
+        <form id="latency-form" class="space-y-4">
+            <div>
+                <label for="latencyTarget" class="block text-sm font-medium text-gray-700 mb-1">Latency Target (e.g., 12):</label>
+                <input type="text" id="latencyTarget" name="latencyTarget" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                       placeholder="Loading..."> </div>
+
+            <div>
+                <label for="latencyTargets" class="block text-sm font-medium text-gray-700 mb-1">Latency Targets (e.g., 3,6,9):</label>
+                <input type="text" id="latencyTargets" name="latencyTargets" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                       placeholder="Loading..."> </div>
+
+            <button type="submit"
+                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                Update Latency
+            </button>
+        </form>
+
+        <div id="message-area" class="mt-6">
+            </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const form = document.getElementById('latency-form');
+        const latencyTargetInput = document.getElementById('latencyTarget');
+        const latencyTargetsInput = document.getElementById('latencyTargets');
+        const messageArea = document.getElementById('message-area');
+
+        // Backend server URLs (adjust port if necessary)
+        // Assumes the Node.js server is running on the same machine on port 3000
+        const updateUrl = 'http://localhost:3000/update-latency';
+        const getUrl = 'http://localhost:3000/get-latency'; // URL for the new endpoint
+
+        /**
+         * Displays a message in the message area.
+         * @param {string} text - The message text to display.
+         * @param {'success' | 'error'} type - The type of message ('success' or 'error').
+         */
+        function displayMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = text;
+            // Apply appropriate CSS classes based on the message type
+            messageDiv.className = `message message-${type}`;
+            // Clear previous messages before adding a new one
+            messageArea.innerHTML = '';
+            messageArea.appendChild(messageDiv);
+        }
+
+        /**
+         * Fetches initial latency values from the server and populates the form.
+         */
+        async function loadInitialValues() {
+            try {
+                // Send POST request to the /get-latency endpoint
+                // Note: Your server code uses POST for /get-latency
+                const response = await fetch(getUrl, {
+                    method: 'GET', // Use POST as defined in your server code
+                    headers: {
+                        // No Content-Type needed for this specific GET-like POST
+                        // Add 'Content-Type': 'application/json' if your server expects it
+                    },
+                    // No body needed for this specific GET-like POST
+                });
+
+                // Parse the JSON response
+                const result = await response.json();
+
+                // Check if the request was successful
+                if (response.ok && result.latency !== undefined && result.latencyTargets !== undefined) {
+                    // Populate the input fields with the fetched values
+                    latencyTargetInput.value = result.latency;
+                    latencyTargetsInput.value = result.latencyTargets;
+                    // Optionally clear placeholder or display a success message
+                    latencyTargetInput.placeholder = "Enter single target value";
+                    latencyTargetsInput.placeholder = "Enter comma-separated targets";
+                    console.log('Initial values loaded:', result);
+                } else {
+                    // Handle server-side errors or missing data
+                    const errorMsg = result.error || `Server responded with status: ${response.status} or missing data.`;
+                    displayMessage(`Failed to load initial values: ${errorMsg}`, 'error');
+                    // Reset placeholders on error
+                    latencyTargetInput.placeholder = "Enter single target value";
+                    latencyTargetsInput.placeholder = "Enter comma-separated targets";
+                }
+            } catch (error) {
+                // Handle network errors
+                console.error('Error loading initial values:', error);
+                displayMessage(`Failed to connect to the server to load initial values. Is it running at ${getUrl}? Error: ${error.message}`, 'error');
+                 // Reset placeholders on error
+                latencyTargetInput.placeholder = "Enter single target value";
+                latencyTargetsInput.placeholder = "Enter comma-separated targets";
+            }
+        }
+
+        // Add event listener for form submission (Update operation)
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission
+
+            // Clear previous messages before making the request
+            messageArea.innerHTML = '';
+
+            // Get values from input fields
+            const latencyTarget = latencyTargetInput.value.trim();
+            const latencyTargets = latencyTargetsInput.value.trim();
+
+            // Basic validation (ensure fields are not empty)
+            if (!latencyTarget || !latencyTargets) {
+                displayMessage('Please fill in both fields.', 'error');
+                return;
+            }
+
+            // Prepare the data payload for the POST request
+            const data = {
+                latencyTarget: latencyTarget,
+                latencyTargets: latencyTargets
+            };
+
+            try {
+                // Send POST request to the server using fetch API
+                const response = await fetch(updateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json', // Indicate we're sending JSON
+                    },
+                    body: JSON.stringify(data), // Convert JS object to JSON string
+                });
+
+                // Parse the JSON response from the server
+                const result = await response.json();
+
+                // Check if the request was successful (HTTP status 200-299)
+                if (response.ok) {
+                    // Display success message from the server response
+                    let successMsg = result.message || 'Latency updated successfully.';
+                    if (result.latency && result.latencyTargets) {
+                        successMsg += ` New Target: ${result.latency}, New Targets: ${result.latencyTargets}`;
+                    }
+                    displayMessage(successMsg, 'success');
+                } else {
+                    // Display error message from the server response
+                    const errorMsg = result.error || `Server responded with status: ${response.status}`;
+                    displayMessage(errorMsg, 'error');
+                }
+
+            } catch (error) {
+                // Handle network errors or issues connecting to the server
+                console.error('Error sending update request:', error);
+                displayMessage(`Failed to connect to the server for update. Is it running at ${updateUrl}? Error: ${error.message}`, 'error');
+            }
+        });
+
+        // --- Load initial values when the page content is loaded ---
+        document.addEventListener('DOMContentLoaded', loadInitialValues);
+
+    </script>
+
+</body>
+</html>

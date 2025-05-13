@@ -24,7 +24,7 @@
             player1.initialize(video,'' ,true);
             playerSynchronization.addFollower(player1, {
                 globalSync: true,
-                url: 'http://localhost:3000/'
+                url: 'http://localhost:3000/sync'
             });
 
             video = document.querySelector('#video2');
@@ -34,12 +34,22 @@
             player2.initialize(video, '', true);
             playerSynchronization.addFollower(player2, {
                 globalSync: true,
-                url: 'http://localhost:3000/'
+                url: 'http://localhost:3000/sync'
             });
 
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');
             const customUrl = document.getElementById('custom-url');
+
+            urlSelect.addEventListener('change', () => {
+                if(urlSelect.value === 'custom') {
+                    customUrl.disabled = false;
+                    customUrl.value = '';
+                } else {
+                    customUrl.value = urlSelect.value;
+                    customUrl.disabled = true;
+                }
+            });
 
             loadButton.addEventListener('click', () => {
                 const enteredUrl = customUrl.value.trim();
@@ -106,6 +116,7 @@
             <div class="input-group">
                 <button id="load-button" type="button" class="btn btn-primary" aria-haspopup="true" aria-expanded="false">Load</button>
                 <select id="url-select" class="dropdown-toggle">
+                     <option value="custom">Custom</option>
                     <option
                         value="https://livesim.dashif.org/livesim2/WAVE/vectors/cfhd_sets/12.5_25_50/t1/2022-10-17/stream.mpd">
                         Live</option>
