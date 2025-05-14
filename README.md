@@ -112,5 +112,13 @@ player.updateSettings({
 
 - **Live Catchup**: This feature enables the player to adjust playback speed to catch up to the live edge when the delay exceeds the configured threshold. If the playback is too far behind, the player increases the playback rate temporarily to reduce the delay. Once the delay is within acceptable limits, the playback rate returns to normal.
 
+## Custom Latency Target Logic
+
+In the `/sync` route, there is a placeholder to implement custom logic for setting the latency target based on the CMCD data and business requirements. This is marked with the following comment in the code:
+
+```javascript
+//CHANGEME: Set the latency target based on the CMCD data and business logic
+```
+
 ## Global Synchronization sequence Diagram
 ![Global Sync Workflow](diagram.png)
