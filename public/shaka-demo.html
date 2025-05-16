@@ -124,7 +124,7 @@
             });
 
             async function updateLatency(cmcd) {
-                const response = await fetch(`http://localhost:3000/sync?CMCD=${cmcd}`);
+                const response = await fetch(window.location.origin + `/sync?CMCD=${cmcd}`);
                 const syncData = parseCMSDHeader(response);
                 if (syncData.latency) {
                     player.configure({
