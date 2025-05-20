@@ -120,5 +120,8 @@ In the `/sync` route, there is a placeholder to implement custom logic for setti
 //CHANGEME: Set the latency target based on the CMCD data and business logic
 ```
 
-## Global Synchronization sequence Diagram
+## Worflow Diagram
 ![Global Sync Workflow](diagram.png)
+
+## Sequence Diagram
+![Global Sync Workflow](sequence-diagram.png)
