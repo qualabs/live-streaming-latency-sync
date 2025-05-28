@@ -5,7 +5,6 @@
     <title>Synchronized live playback with HLS.js</title>
 
     <script src="../dist/hls.js"></script>
-<script src="./playerSyncAdapter.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
     <style>
@@ -68,7 +67,6 @@
         const playbackRateSpan = document.getElementById('playbackRate');
 
         let hls = null;
-        let adapter = null;
         let liveLatency = 0;
         let sessionId = crypto.randomUUID();
         let currentUrl = '';
@@ -94,6 +92,11 @@
           }
           sessionId = crypto.randomUUID();
           hls = new Hls({
+            lowLatencyMode: true,
+            liveSyncMode: 'buffered',
+            liveSyncDuration: 20,
+            liveSyncOnStallIncrease: 0,
+            maxLiveSyncPlaybackRate: 1.5,
             cmcd: {
               enabled: true,
               sessionId: sessionId,
@@ -108,9 +111,7 @@
                 let newCmcdParam = cmcdParam + `,ltc=${ltcValue},ts=${Date.now()}`;
                 parsedUrl.searchParams.set('CMCD', newCmcdParam);
                 xhr.open(xhr.method || 'GET', parsedUrl.toString(), true);
-                if (adapter) {
-                  window.playerSyncAdapter.updateLatency(newCmcdParam, adapter);
-                }
+                updateLatency(newCmcdParam);
               }
             }
           });
@@ -122,34 +123,63 @@
             hls.on(Hls.Events.MEDIA_ATTACHED, function () {
               video.play();
             });
-            adapter = window.playerSyncAdapter.createPlayerSyncAdapter('hls', hls, video);
-            window.playerSyncAdapter.startLatencySyncInterval(adapter);
           }
 
-          setInterval(() => {
-            liveLatency = 0;
-            if (hls && hls.latency !== undefined && video) {
-              liveLatency = hls.latency;
+        setInterval(() => {
+          liveLatency = 0;
+          if (hls && hls.latency !== undefined && video) {
+            liveLatency = hls.latency;
+          }
+          document.querySelector('#liveLatency').innerHTML = parseFloat(liveLatency || 0).toFixed(2);
+
+          let bufferLength = 0;
+          if (video && video.buffered.length > 0) {
+            for (let i = 0; i < video.buffered.length; i++) {
+              const start = video.buffered.start(i);
+              const end = video.buffered.end(i);
+              if (start <= video.currentTime && video.currentTime <= end) {
+                bufferLength = end - video.currentTime;
+                break;
+              }
             }
+          }
+          document.querySelector('#bufferLength').innerHTML = parseFloat(bufferLength || 0).toFixed(2) + 's';
+          document.querySelector('#playbackRate').innerHTML = parseFloat(video.playbackRate || 1).toFixed(2);
+        }, 1000);
+      });
 
-            liveLatencySpan.innerHTML = parseFloat(liveLatency || 0).toFixed(2);
-
-            let bufferLength = 0;
-            if (video && video.buffered.length > 0) {
-              for (let i = 0; i < video.buffered.length; i++) {
-                const start = video.buffered.start(i);
-                const end = video.buffered.end(i);
-                if (start <= video.currentTime && video.currentTime <= end) {
-                  bufferLength = end - video.currentTime;
-                  break;
+      async function updateLatency(cmcd) {
+        try {
+          const response = await fetch(window.location.origin + `/sync?CMCD=${encodeURIComponent(cmcd)}`);
+          const cmsdHeader = response.headers.get('cmsd-dynamic');
+          if (!cmsdHeader) return;
+          const latencyMatch = cmsdHeader.match(/com\.svta-latency="([^"]+)"/);
+          if (latencyMatch) {
+            const latency = Number(latencyMatch[1]);
+            if (!isNaN(latency)) {
+              if (hls.config.liveSyncDuration !== latency) {
+                hls.config.liveSyncDuration = latency;
+                hls.config.liveMaxLatencyDuration = latency + 2;
+              }
+              const liveSyncDifference = hls.liveSyncPosition - video.currentTime;
+              if (liveSyncDifference < 0) {
+                if (Math.abs(liveSyncDifference) > hls.config.liveMaxLatencyDuration) {
+                  video.currentTime = hls.liveSyncPosition;
+                } else if (liveSyncDifference >= -0.4) {
+                  video.playbackRate = 0.99;
+                } else if (liveSyncDifference >= -1) {
+                  video.playbackRate = 0.9;
+                } else {
+                  video.playbackRate = 0.5;
                 }
               }
             }
-            bufferLengthSpan.innerHTML = parseFloat(bufferLength || 0).toFixed(2) + 's';
-            playbackRateSpan.innerHTML = parseFloat(video.playbackRate || 1).toFixed(2);
-          }, 100);
-        });
-      }); 
+          }
+        } catch (e) { 
+          console.error('Error updating latency:', e);
+        }
+      }
+    }); 
     </script>
   </body>
 </html>

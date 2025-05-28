@@ -5,7 +5,6 @@
     <title>Synchronized live playback with Shaka Player</title>
 
     <script src="./dist/shaka-player.compiled.js"></script>
-<script src="./playerSyncAdapter.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
@@ -38,12 +37,16 @@
             const video = document.querySelector('#video1');
             const player = new shaka.Player();
             window.player = player;
-            let adapter = window.playerSyncAdapter.createPlayerSyncAdapter('shaka', player, video);
-            window.playerSyncAdapter.startLatencySyncInterval(adapter);
             
             const sessionId = crypto.randomUUID();
             
             player.configure({
+                streaming: {
+                    lowLatencyMode: true,
+                    liveSync: {
+                        enabled: true,
+                    }
+                },
                 cmcd: {
                     enabled: true,
                     version: 2,
@@ -116,9 +119,28 @@
                 const url = new URL(response.uri);
                 const cmcdParam = url.searchParams.get('CMCD');
                 if (cmcdParam) {
-                    window.playerSyncAdapter.updateLatency(cmcdParam, adapter);
+                    updateLatency(cmcdParam);
                 }
             });
+
+            async function updateLatency(cmcd) {
+                const response = await fetch(window.location.origin + `/sync?CMCD=${cmcd}`);
+                const syncData = parseCMSDHeader(response);
+                if (syncData.latency) {
+                    player.configure({
+                        streaming: {
+                            lowLatencyMode: true,
+                            liveSync: {
+                                enabled: true,
+                                targetLatency: syncData.latency,
+                                targetLatencyTolerance: 0.05,
+                                maxPlaybackRate: 1.5,
+                                minPlaybackRate: 0.5,
+                            }
+                        }
+                    });
+                }
+            }
 
             const parseCMSDHeader = (response) => {
                 const cmsdHeader = response.headers.get('cmsd-dynamic');

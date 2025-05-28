@@ -102,7 +102,7 @@ let currentTarget = null;
         if (config.globalSync) {
             globalSyncInterceptor(player, config);
         } else if (config.leaderId) {
-            leaderSyncInterceptor(player, config);
+            watchPartyInterceptor(player, config);
         }
             
     }
@@ -151,7 +151,7 @@ let currentTarget = null;
         });
     }
 
-    const leaderSyncInterceptor = (player, config) => {
+    const watchPartyInterceptor = (player, config) => {
         player.addRequestInterceptor((request) => {
             const { filteredCmcdData } = request;
             if (filteredCmcdData) {
