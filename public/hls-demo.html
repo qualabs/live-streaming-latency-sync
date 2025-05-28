@@ -122,8 +122,8 @@
             hls.on(Hls.Events.MEDIA_ATTACHED, function () {
               video.play();
             });
-            adapter = playerSyncPlugin.createplayerSyncPlugin('hls', hls, video);
-            playerSyncPlugin.startSyncrhonization(adapter);
+            adapter = playerSyncPlugin.createPlayerSyncAdapter('hls', hls, video);
+            playerSyncPlugin.startSynchronization(adapter);
           }
 
           setInterval(() => {

@@ -138,7 +138,7 @@ function getLiveSyncDifference(adapter) {
 }
 
 function startSynchronization(adapter) {
-    if (adapter instanceof DashAdapter) {
+    if (adapter instanceof DashSyncAdapter) {
         return;
     }
 
@@ -203,11 +203,28 @@ function parseCMSDHeader(cmsdHeader) {
     return latency;
 }
 
+// TODO configs:
+// const defaultConfig = {
+//     liveMaxSync: 2,
+//     catchUp: {
+//         high: 2,
+//         medium: 0.4,
+//         low: 0.1 
+//     },
+//     url: `${window.location.origin}/sync`
+// };
+
+// function configurePlayerSyncPlugin(customConfig) {
+//     return { ...defaultConfig, ...customConfig };
+// }
+
+
 (() => {
     const playerSyncPlugin = {
         createPlayerSyncAdapter,
         startSynchronization,
-        updateLatency
+        updateLatency,
+        // configure: configurePlayerSyncPlugin
     };
 
     if (typeof window !== 'undefined') {
