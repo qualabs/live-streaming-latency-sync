@@ -5,7 +5,7 @@
     <title>Synchronized live playback</title>
 
     <script src="./dist/modern/umd/dash.all.debug.js"></script>
-    <script src="./playerSynchronizationPlugin.js"></script>
+    <script src="./playerSyncPlugin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <!-- Bootstrap core CSS -->
@@ -22,20 +22,14 @@
             window.player1 = player1;
 
             player1.initialize(video,'' ,true);
-            playerSynchronization.addFollower(player1, {
-                globalSync: true,
-                url: window.location.origin + '/sync'
-            });
+            playerSyncPlugin.createPlayerSyncAdapter('dash', player1, video);
 
             video = document.querySelector('#video2');
             player2 = dashjs.MediaPlayer().create();
             window.player2 = player2;
 
             player2.initialize(video, '', true);
-            playerSynchronization.addFollower(player2, {
-                globalSync: true,
-                url: window.location.origin + '/sync'
-            });
+            playerSyncPlugin.createPlayerSyncAdapter('dash', player2, video);
 
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');

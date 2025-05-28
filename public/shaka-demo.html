@@ -5,7 +5,7 @@
     <title>Synchronized live playback with Shaka Player</title>
 
     <script src="./dist/shaka-player.compiled.js"></script>
-<script src="./playerSyncAdapter.js"></script>
+    <script src="./playerSyncAdapter.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
@@ -39,7 +39,7 @@
             const player = new shaka.Player();
             window.player = player;
             let adapter = window.playerSyncAdapter.createPlayerSyncAdapter('shaka', player, video);
-            window.playerSyncAdapter.startLatencySyncInterval(adapter);
+            playerSyncAdapter.startSyncrhonization(adapter);
             
             const sessionId = crypto.randomUUID();
             
@@ -116,7 +116,7 @@
                 const url = new URL(response.uri);
                 const cmcdParam = url.searchParams.get('CMCD');
                 if (cmcdParam) {
-                    window.playerSyncAdapter.updateLatency(cmcdParam, adapter);
+                    playerSyncAdapter.updateLatency(cmcdParam, adapter);
                 }
             });
 

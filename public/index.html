@@ -5,7 +5,7 @@
     <title>Synchronized live playback</title>
 
     <script src="./dist/modern/umd/dash.all.debug.js"></script>
-    <script src="./playerSynchronizationPlugin.js"></script>
+    <script src="./playerSyncPlugin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <!-- Bootstrap core CSS -->
@@ -15,17 +15,14 @@
 
     <script class="code">
         function init() {
-            var player1, video;
+            var player, video;
 
             video = document.querySelector('#video1');
-            player1 = dashjs.MediaPlayer().create();
-            window.player1 = player1;
+            player = dashjs.MediaPlayer().create();
+            window.player = player;
 
-            player1.initialize(video,'' ,true);
-            playerSynchronization.addFollower(player1, {
-                globalSync: true,
-                url: window.location.origin + '/sync'
-            });
+            player.initialize(video,'' ,true);
+            playerSyncPlugin.createPlayerSyncAdapter('dash', player, video);
 
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');
@@ -44,13 +41,13 @@
             loadButton.addEventListener('click', () => {
                 const enteredUrl = customUrl.value.trim();
                 const selectedUrl = urlSelect.value;
-                player1.attachSource(enteredUrl !== '' ? enteredUrl : selectedUrl);
+                player.attachSource(enteredUrl !== '' ? enteredUrl : selectedUrl);
             });
 
             setInterval(function () {
-                document.querySelector('#video1delay').innerHTML = parseFloat(player1.getCurrentLiveLatency(), 10);
-                document.querySelector('#video1buffer').innerHTML = player1.getBufferLength() + 's';
-                document.querySelector('#video1rate').innerHTML = player1.getPlaybackRate().toFixed(2);
+                document.querySelector('#video1delay').innerHTML = parseFloat(player.getCurrentLiveLatency(), 10);
+                document.querySelector('#video1buffer').innerHTML = player.getBufferLength() + 's';
+                document.querySelector('#video1rate').innerHTML = player.getPlaybackRate().toFixed(2);
             }, 1000);
         }
     </script>
@@ -126,7 +123,7 @@
         </div>
         <div class="row">
             <div class="col-lg-12">
-                <canvas id="metric-chart-player1" style="height: 300px;"></canvas>
+                <canvas id="metric-chart-player" style="height: 300px;"></canvas>
             </div>
         </div>
         <footer class="pt-3 mt-4 text-muted border-top">
@@ -141,7 +138,7 @@
     });
 
     function setupCharts() {
-        setupChart('metric-chart-player1', player1);
+        setupChart('metric-chart-player', player);
     }
 
     function setupChart(chartId, player) {

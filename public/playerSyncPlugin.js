@@ -1,17 +1,17 @@
-class BaseSyncAdapter {
+class SyncAdapter {
     constructor(videoElement) {
         this._theTargetDelay = null;
         this.video = videoElement;
     }
-    setTheTargetDelay(delay) {
+    setTargetDelay(delay) {
         this._theTargetDelay = delay;
     }
-    getTheTargetDelay() {
+    getTargetDelay() {
         return this._theTargetDelay;
     }
 }
 
-class HlsAdapter extends BaseSyncAdapter {
+class HlsSyncAdapter extends SyncAdapter {
     constructor(hlsInstance, videoElement) {
         super(videoElement);
         this.hls = hlsInstance;
@@ -32,7 +32,7 @@ class HlsAdapter extends BaseSyncAdapter {
     }
 }
 
-class ShakaAdapter extends BaseSyncAdapter {
+class ShakaSyncAdapter extends SyncAdapter {
     constructor(shakaInstance, videoElement) {
         super(videoElement);
         this.shaka = shakaInstance;
@@ -57,44 +57,79 @@ class ShakaAdapter extends BaseSyncAdapter {
     }
 }
 
-class DashAdapter extends BaseSyncAdapter {
+class DashSyncAdapter extends SyncAdapter {
     constructor(dashInstance, videoElement) {
         super(videoElement);
         this.dash = dashInstance;
-    }
-    seek(time) {
-        this.dash.seek(time);
-    }
-    setPlaybackRate(rate) {
-        this.video.playbackRate = rate;
-    }
-    getLatency() {
-        if (this.dash && this.dash.getCurrentLiveLatency) {
-            return this.dash.getCurrentLiveLatency();
-        }
-        return 0;
-    }
-    getCurrentTime() {
-        if (this.dash && this.dash.time) {
-            return this.dash.time();
-        }
-        return this.video.currentTime;
+        this.dash.updateSettings({
+            streaming: {
+                cmcd: {
+                    enabled: true,
+                    version: 2,
+                    targets: [{
+                        enabled: true,
+                        cmcdMode: 'response',
+                        mode: 'query',
+                        url: `${window.location.origin}/sync`,
+                        method: 'POST',
+                    }],
+                }
+            }
+        });
+
+        this.dash.addRequestInterceptor((request) => {
+            const { cmcd } = request;
+            if (!cmcd) {
+                return Promise.resolve(request);
+            }
+
+            const currentTarget = this.getTargetDelay();            
+            if (cmcd && currentTarget) {
+                const customKey = 'com.svta-latency';
+                const customKeyValue = currentTarget;
+                cmcd[customKey] = customKeyValue;
+                request.url += encodeURIComponent(`,${customKey}="${customKeyValue}"`);
+            }
+            return Promise.resolve(request);
+        });
+    
+        this.dash.addResponseInterceptor((response) => {
+            if (response.request.customData.request.type !== 'CmcdResponse') {
+                return Promise.resolve(response);
+            }
+            const cmcsdHeader = response.headers['cmsd-dynamic'];
+            const latency = parseCMSDHeader(cmcsdHeader);
+            if (!isNaN(latency)) {
+                this.setTargetDelay(latency);
+                this.dash.updateSettings({
+                    streaming: {
+                        delay: {
+                            liveDelay: latency
+                        },
+                        liveCatchup: {
+                            enabled: true, 
+                        }
+                    }
+                });
+            }
+            return Promise.resolve(response);
+        });
     }
 }
 
 function createPlayerSyncAdapter(playerType, playerInstance, videoElement) {
     if (playerType === 'hls') {
-        return new HlsAdapter(playerInstance, videoElement);
+        return new HlsSyncAdapter(playerInstance, videoElement);
     } else if (playerType === 'shaka') {
-        return new ShakaAdapter(playerInstance, videoElement);
+        return new ShakaSyncAdapter(playerInstance, videoElement);
     } else if (playerType === 'dash') {
-        return new DashAdapter(playerInstance, videoElement);
+        return new DashSyncAdapter(playerInstance, videoElement);
     }
-    throw new Error('Tipo de player no soportado');
+    throw new Error('Player not supported: ' + playerType);
 }
 
 function getLiveSyncDifference(adapter) {
-    const targetLatency = adapter.getTheTargetDelay();
+    const targetLatency = adapter.getTargetDelay();
     if (!targetLatency) {
         return null;
     }
@@ -102,7 +137,11 @@ function getLiveSyncDifference(adapter) {
     return liveLatency - targetLatency;
 }
 
-function startLatencySyncInterval(adapter) {
+function startSynchronization(adapter) {
+    if (adapter instanceof DashAdapter) {
+        return;
+    }
+
     setInterval(() => {
         const liveSyncDifference = getLiveSyncDifference(adapter);
         if (liveSyncDifference === null) {
@@ -114,6 +153,7 @@ function startLatencySyncInterval(adapter) {
             return;
         }
     }, 1000);
+
     setInterval(() => {
         const liveSyncDifference = getLiveSyncDifference(adapter);
         if (liveSyncDifference === null) {
@@ -131,8 +171,7 @@ function startLatencySyncInterval(adapter) {
             } else {
                 adapter.setPlaybackRate(2);
             }
-        }
-        if (liveSyncDifference < 0) {
+        } else {
             if (liveSyncDifference >= -0.1) {
                 adapter.setPlaybackRate(0.99);
             } else if (liveSyncDifference >= -0.4) {
@@ -149,24 +188,29 @@ async function updateLatency(cmcd, adapter) {
       const response = await fetch(window.location.origin + `/sync?CMCD=${encodeURIComponent(cmcd)}`);
       const cmsdHeader = response.headers.get('cmsd-dynamic');
       if (!cmsdHeader) return;
-      const latencyMatch = cmsdHeader.match(/com\.svta-latency="([^"]+)"/);
-      if (latencyMatch) {
-        const latency = Number(latencyMatch[1]);
-        if (!isNaN(latency)) {
-          adapter.setTheTargetDelay(latency);
-        }
-      }
+      const latency = parseCMSDHeader(cmsdHeader);
+    if (!isNaN(latency)) {
+        adapter.setTargetDelay(latency);
+    }
     } catch (e) { 
       console.error('Error updating latency:', e);
     }
 }
 
-const playerSyncAdapter = {
-    createPlayerSyncAdapter,
-    startLatencySyncInterval,
-    updateLatency
-};
-
-if (typeof window !== 'undefined') {
-    window.playerSyncAdapter = playerSyncAdapter;
+function parseCMSDHeader(cmsdHeader) {
+    const latencyMatch = cmsdHeader.match(/com\.svta-latency="([^"]+)"/);
+    const latency = latencyMatch ? Number(latencyMatch[1]) : null;
+    return latency;
 }
+
+(() => {
+    const playerSyncPlugin = {
+        createPlayerSyncAdapter,
+        startSynchronization,
+        updateLatency
+    };
+
+    if (typeof window !== 'undefined') {
+        window.playerSyncPlugin = playerSyncPlugin;
+    }
+})();
