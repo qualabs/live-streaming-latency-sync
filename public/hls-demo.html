@@ -46,6 +46,9 @@
                     <div class="code">
                         <video id="video" controls muted></video>
                         <div>
+                            <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span id="bufferLength"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="playbackRate"></span></div>
@@ -66,10 +69,12 @@
         const liveLatencySpan = document.getElementById('liveLatency');
         const bufferLengthSpan = document.getElementById('bufferLength');
         const playbackRateSpan = document.getElementById('playbackRate');
+        const playheadTimeSpan = document.getElementById('playheadTime');
+        const playheadTimeUNIXSpan = document.getElementById('playheadTimeUNIX');
+        const clientTimeSpan = document.getElementById('clientTime');
 
         let hls = null;
         let adapter = null;
-        let liveLatency = 0;
         let sessionId = crypto.randomUUID();
         let currentUrl = '';
         const loadButton = document.getElementById('load-button');
@@ -104,8 +109,8 @@
               let parsedUrl = new URL(url);
               let cmcdParam = parsedUrl.searchParams.get('CMCD');
               if (cmcdParam) {
-                let ltcValue = Math.round(liveLatency * 1000);
-                let newCmcdParam = cmcdParam + `,ltc=${ltcValue},ts=${Date.now()}`;
+                let ltcValue = Math.round(hls.latency * 1000);
+                let newCmcdParam = cmcdParam + `,ltc=${ltcValue},ts=${Date.now()},ph=${hls.playingDate?.getTime()},pr=${video.playbackRate}`;
                 parsedUrl.searchParams.set('CMCD', newCmcdParam);
                 xhr.open(xhr.method || 'GET', parsedUrl.toString(), true);
                 if (adapter) {
@@ -126,13 +131,25 @@
             playerSyncPlugin.startSynchronization(adapter);
           }
 
+
+          // Interval to update live latency, buffer length, and playback rate values in HTML elements
           setInterval(() => {
-            liveLatency = 0;
+            
+            clientTimeSpan.innerHTML = new Date()
+            
+            let liveLatency = 0;
             if (hls && hls.latency !== undefined && video) {
               liveLatency = hls.latency;
             }
 
             liveLatencySpan.innerHTML = parseFloat(liveLatency || 0).toFixed(2);
+            
+            let playheadTime = 0;
+            if (hls && hls.playingDate){
+              playheadTime = hls.playingDate
+            }
+            playheadTimeSpan.innerHTML = playheadTime
+            playheadTimeUNIXSpan.innerHTML = playheadTime?.getTime() || 0
 
             let bufferLength = 0;
             if (video && video.buffered.length > 0) {

@@ -19,11 +19,12 @@ const DATA_TIMEOUT_MS = DATA_TIMEOUT_MINUTES * 60 * 1000;
 
 export function savePlayerData(cmcdData) {
   // Extract required data from the CMCD object.
-  let latency, sessionId, playerReportTime
+  let latency, sessionId, playerReportTime, playerPlayHead
   try {
     latency = parseFloat(cmcdData['ltc']); // Latency in milliseconds.
     sessionId = cmcdData['sid']; // Unique session identifier.
     playerReportTime = parseInt(cmcdData['ts']); // Player's media timestamp in milliseconds.
+    playerPlayHead = parseInt(cmcdData['ph']); // Player's media timestamp in milliseconds.
   } catch (error) {
     console.warn('Invalid or missing CMCD data fields (sid, ltc, ts). Data not saved. Received:', cmcdData);
     return
@@ -32,6 +33,7 @@ export function savePlayerData(cmcdData) {
   // Get the current timestamp on the server.
   // This will be used to determine the age of data points for pruning.
   const currentServerTimestamp = Date.now();
+  console.log("Playhead time:", sessionId, playerPlayHead)
 
   // Ensure an array exists in playerDataStore for this sessionId.
   // If this is the first data point for this session, initialize an empty array.

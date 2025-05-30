@@ -23,12 +23,13 @@ class HlsSyncAdapter extends SyncAdapter {
         this.video.playbackRate = rate;
     }
     getLatency() {
-        if (this.hls && this.hls.latency !== undefined) {
+        /*if (this.hls && this.hls.latency !== undefined) {
             return this.hls.latency;
-        }
+        }*/
+        return (new Date().getTime() - this.hls.playingDate?.getTime())/1000
     }
     getCurrentTime() {
-        return this.video.currentTime;
+        return this.hls.playingDate?.getTime()
     }
 }
 
@@ -44,16 +45,17 @@ class ShakaSyncAdapter extends SyncAdapter {
         this.video.playbackRate = rate;
     }
     getLatency() {
-        if (this.shaka && this.shaka.getStats) {
+        /*if (this.shaka && this.shaka.getStats) {
             const stats = this.shaka.getStats();
             if (stats && stats.liveLatency) {
                 return stats.liveLatency;
             }
-        }
-        return 0;
+        }*/
+        return (new Date().getTime() - this.shaka.getPlayheadTimeAsDate()?.getTime()) /1000
     }
+
     getCurrentTime() {
-        return this.video.currentTime;
+        return this.shaka.getPlayheadTimeAsDate()?.getTime();
     }
 }
 
@@ -134,6 +136,9 @@ function getLiveSyncDifference(adapter) {
         return null;
     }
     let liveLatency = adapter.getLatency();
+    console.log('Live Latency:', liveLatency);
+    console.log('Target Latency:', targetLatency);
+    console.log(liveLatency - targetLatency)
     return liveLatency - targetLatency;
 }
 
@@ -147,11 +152,11 @@ function startSynchronization(adapter) {
         if (liveSyncDifference === null) {
             return;
         }
-        if (Math.abs(liveSyncDifference) > 2) {
+        /*if (Math.abs(liveSyncDifference) > 2) {
             adapter.seek(adapter.getCurrentTime() + liveSyncDifference);
             adapter.setPlaybackRate(1);
             return;
-        }
+        }*/
     }, 1000);
 
     setInterval(() => {

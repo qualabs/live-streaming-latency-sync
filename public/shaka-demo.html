@@ -79,11 +79,15 @@
             });
             
             setInterval(async () => {
-                document.querySelector('#video1delay').innerHTML = parseFloat(player.getStats().liveLatency || 0).toFixed(2);
-                const bufferedInfo = player.getBufferedInfo();
-                document.querySelector('#video1buffer').innerHTML = parseFloat(getBufferLength() || 0).toFixed(2) + 's';
-                document.querySelector('#video1rate').innerHTML = parseFloat(player.getPlaybackRate() || 1).toFixed(2);
-            }, 1000);
+                const playheadTime = player.getPlayheadTimeAsDate()
+                document.querySelector('#clientTime').innerHTML = new Date();
+                document.querySelector('#playheadTime').innerHTML = playheadTime;
+                document.querySelector('#playheadTimeUNIX').innerHTML = playheadTime?.getTime();
+                document.querySelector('#liveLatency').innerHTML = parseFloat(player.getStats().liveLatency || 0).toFixed(2);
+                document.querySelector('#liveLatency').innerHTML = parseFloat(player.getStats().liveLatency || 0).toFixed(2);
+                document.querySelector('#bufferLength').innerHTML = parseFloat(getBufferLength() || 0).toFixed(2) + 's';
+                document.querySelector('#playbackRate').innerHTML = parseFloat(player.getPlaybackRate() || 1).toFixed(2);
+            }, 100);
 
             function getBufferLength() {
                 const bufferedInfo = player.getBufferedInfo();
@@ -107,7 +111,7 @@
                     if (!cmcdParam) {
                         return;
                     }
-                    let newCmcdParam = cmcdParam + `,ts=${Date.now()}`;
+                    let newCmcdParam = cmcdParam + `,ts=${Date.now()},ph=${player.getPlayheadTimeAsDate()?.getTime()},pr=${video.playbackRate}`;
                     url.searchParams.set('CMCD', newCmcdParam);
                     request.uris[0] = url.toString();
             });
@@ -176,9 +180,12 @@
                     <div class="code">
                         <video id="video1" controls="true" muted></video>
                         <div>
-                            <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="video1delay"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span id="video1buffer"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="video1rate"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span id="bufferLength"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="playbackRate"></span></div>
                         </div>
                     </div>
                 </div>
