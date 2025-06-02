@@ -6,6 +6,7 @@
 
     <script src="./dist/modern/umd/dash.all.debug.js"></script>
     <script src="./playerSyncPlugin.js"></script>
+    <script src="./chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <!-- Bootstrap core CSS -->
@@ -22,7 +23,8 @@
             window.player = player;
 
             player.initialize(video,'' ,true);
-            playerSyncPlugin.createPlayerSyncAdapter('dashjs', player, video);
+            window.syncAdapter = playerSyncPlugin.createPlayerSyncAdapter('dashjs', player, video);
+            playerSyncPlugin.startSynchronization(window.syncAdapter);
 
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');
@@ -44,11 +46,6 @@
                 player.attachSource(enteredUrl !== '' ? enteredUrl : selectedUrl);
             });
 
-            setInterval(function () {
-                document.querySelector('#video1delay').innerHTML = parseFloat(player.getCurrentLiveLatency(), 10);
-                document.querySelector('#video1buffer').innerHTML = player.getBufferLength() + 's';
-                document.querySelector('#video1rate').innerHTML = player.getPlaybackRate().toFixed(2);
-            }, 1000);
         }
     </script>
     <style>
@@ -110,12 +107,13 @@
                     <h5> Player 1</h5>
                     <div class="code">
                         <video id="video1" controls="true" muted></video>
-                        <div>
-                            <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span
-                                id="video1delay"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span
-                                id="video1buffer"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="video1rate"></span></div>
+                        <div>                           
+                            <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span id="bufferLength"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="playbackRate"></span></div>
                         </div>
                     </div>
                 </div>
@@ -134,62 +132,9 @@
 <script class="code">
     document.addEventListener('DOMContentLoaded', function () {
         init();
-        setupCharts();
+        setupMetrics();
+        setupChart('metric-chart-player');
     });
-
-    function setupCharts() {
-        setupChart('metric-chart-player', player);
-    }
-
-    function setupChart(chartId, player) {
-        const data = {
-            datasets: [
-                { label: 'Live delay', borderColor: '#3944bc', backgroundColor: '#3944bc' },
-                { label: 'Buffer level', borderColor: '#d0312d', backgroundColor: '#d0312d' },
-                { label: 'Playback rate', borderColor: '#3cb043', backgroundColor: '#3cb043' }
-            ]
-        };
-        const config = {
-            type: 'line',
-            data: data,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 0 },
-                scales: {
-                    y: { min: 0, ticks: { stepSize: 0.5 }, title: { display: true, text: 'Value in Seconds' } },
-                    x: { title: { display: true, text: 'Time (s)' } }
-                },
-                plugins: {
-                    legend: { position: 'top' },
-                    title: { display: true, text: 'Live Data Metrics' }
-                }
-            }
-        };
-        const chart = new Chart(document.getElementById(chartId), config);
-
-        setInterval(() => {
-            if (player && player.isReady()) {
-                const dashMetrics = player.getDashMetrics();
-                const labels = chart.data.labels;
-                const datasets = chart.data.datasets;
-
-                if (labels.length > 30) labels.shift();
-                labels.push((labels.length + 1).toString());
-
-                if (datasets[0].data.length > 30) datasets[0].data.shift();
-                datasets[0].data.push(parseFloat(player.getCurrentLiveLatency()).toFixed(2));
-
-                if (datasets[1].data.length > 30) datasets[1].data.shift();
-                datasets[1].data.push(parseFloat(dashMetrics.getCurrentBufferLevel('video')).toFixed(2));
-
-                if (datasets[2].data.length > 30) datasets[2].data.shift();
-                datasets[2].data.push(parseFloat(player.getPlaybackRate()).toFixed(2));
-
-                chart.update();
-            }
-        }, 1000);
-    }
 </script>
 </body>
 </html>

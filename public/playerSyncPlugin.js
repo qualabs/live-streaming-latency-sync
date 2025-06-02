@@ -1,13 +1,85 @@
 class SyncAdapter {
     constructor(videoElement) {
-        this._theTargetDelay = null;
+        this._targetLatency = null;
+        this._latencyTargets = null
+        this._ready = false;
         this.video = videoElement;
+
+        // Clock Sync against server
+        this._clockOffset = 0;
+        this._clockSyncronized = false;
+        this._clockSyncInProgress = false;
+        
+        // Clock Sync Internals
+        this._clockSyncDateT0 = null;
+        setInterval(() => {
+            // Sincronize clock every X seconds
+            this._clockSyncronized = false;
+        }, 5000);
     }
-    setTargetDelay(delay) {
-        this._theTargetDelay = delay;
+    seek(time) {
+        if (!time) return;
+        this.video.currentTime = this.video.currentTime - time;
     }
-    getTargetDelay() {
-        return this._theTargetDelay;
+    getBufferAhead(){
+        let bufferAhead = 0;
+        const video = this.video;
+        if (video && video.buffered.length > 0) {
+            for (let i = 0; i < video.buffered.length; i++) {
+                const start = video.buffered.start(i);
+                const end = video.buffered.end(i);
+                if (start <= video.currentTime && video.currentTime <= end) {
+                    bufferAhead = end - video.currentTime;
+                    break;
+                }
+            }
+        }
+        return bufferAhead;
+    }
+    getPlaybackRate() {
+        return this.video.playbackRate? this.video.playbackRate : 0;
+    }
+    setPlaybackRate(rate) {
+        if (!rate) return;
+        this.video.playbackRate = rate;
+    }   
+    setLatencyTargets(latencyTargets) {
+        if (!latencyTargets) return;
+        this._latencyTargets = latencyTargets;
+    }
+    setTargetLatency(latency) {
+        if (!latency) return;
+        this._targetLatency = latency;
+    }
+    getTargetLatency() {
+        return this._targetLatency;
+    }
+    getClientTime(){
+        return new Date().getTime() + this._clockOffset
+    }
+    getLatency() {
+        const pt = this.getPlayheadTime()
+        if (!pt) return null;
+        return (this.getClientTime() - pt) / 1000
+    }
+    getPlaying() {
+        return !this.video.paused && !this.video.seeking
+    }
+    getReady() {
+        if (this.getPlaying()){
+            this._ready = true;
+        }
+        return this._ready;
+    }    
+    getLiveSyncDifference(){
+        const targetLatency = this.getTargetLatency();
+        const liveLatency = this.getLatency();
+        if (!liveLatency || !targetLatency) return null;
+        console.log('Live Latency:', liveLatency);
+        console.log('Target Latency:', targetLatency);
+        console.log('Latency dif: ', (liveLatency - targetLatency).toFixed(4))
+        console.log('Clock Offset:', this._clockOffset);
+        return liveLatency - targetLatency;
     }
 }
 
@@ -16,20 +88,27 @@ class HlsSyncAdapter extends SyncAdapter {
         super(videoElement);
         this.hls = hlsInstance;
     }
-    seek(time) {
-        this.video.currentTime = time;
+
+    async intercept(xhr, url) {
+        let parsedUrl = new URL(url);
+        let cmcdParam = parsedUrl.searchParams.get('CMCD');
+        if (!cmcdParam) return;
+    
+        let newCmcdParam = cmcdParam + `,ltc=${this.getLatency()},ts=${Date.now()},pt=${this.getPlayheadTime()},pr=${this.getPlaybackRate()}`;
+        parsedUrl.searchParams.set('CMCD', newCmcdParam);
+
+        const cmsd = await updateLatency(cmcdParam);
+        this.setTargetLatency(cmsd.latency)
+        this.setLatencyTargets(cmsd.latencyTargets)
+        // TODO: Sincronize client time
+        // this.setClock(cmsd.serverTime)
     }
-    setPlaybackRate(rate) {
-        this.video.playbackRate = rate;
+    getBufferLength(){
+        return null;
     }
-    getLatency() {
-        /*if (this.hls && this.hls.latency !== undefined) {
-            return this.hls.latency;
-        }*/
-        return (new Date().getTime() - this.hls.playingDate?.getTime())/1000
-    }
-    getCurrentTime() {
-        return this.hls.playingDate?.getTime()
+    getPlayheadTime() {
+        if (!this.hls.playingDate) return null;
+        return this.hls.playingDate.getTime()
     }
 }
 
@@ -37,25 +116,36 @@ class ShakaSyncAdapter extends SyncAdapter {
     constructor(shakaInstance, videoElement) {
         super(videoElement);
         this.shaka = shakaInstance;
-    }
-    seek(time) {
-        this.video.currentTime = time;
-    }
-    setPlaybackRate(rate) {
-        this.video.playbackRate = rate;
-    }
-    getLatency() {
-        /*if (this.shaka && this.shaka.getStats) {
-            const stats = this.shaka.getStats();
-            if (stats && stats.liveLatency) {
-                return stats.liveLatency;
+
+        this.shaka.getNetworkingEngine().registerRequestFilter((type, request) => {
+            const url = new URL(request.uris[0]);
+            const cmcdParam = url.searchParams.get('CMCD');
+            if (!cmcdParam) return
+            let newCmcdParam = cmcdParam + `,ts=${Date.now()},pt=${this.getPlayheadTime()},pr=${this.getPlaybackRate()}`;
+            url.searchParams.set('CMCD', newCmcdParam);
+            request.uris[0] = url.toString();
+        });
+
+        this.shaka.getNetworkingEngine().registerResponseFilter((type, response) => {
+            const url = new URL(response.uri);
+            const cmcdParam = url.searchParams.get('CMCD');
+            if (cmcdParam) {
+                // SetTimout in 0 to not block the player thread.
+                setTimeout(async ()=>{
+                    const cmsd = await updateLatency(cmcdParam);
+                    this.setTargetLatency(cmsd.latency)
+                    this.setLatencyTargets(cmsd.latencyTargets)
+                    // TODO: Sincronize client time
+                    // this.setClock(cmsd.serverTime)
+                }, 0)
             }
-        }*/
-        return (new Date().getTime() - this.shaka.getPlayheadTimeAsDate()?.getTime()) /1000
+        });        
     }
 
-    getCurrentTime() {
-        return this.shaka.getPlayheadTimeAsDate()?.getTime();
+    getPlayheadTime() {
+        const playHeadTime =  this.shaka.getPlayheadTimeAsDate();
+        if (!playHeadTime) return null;
+        return playHeadTime.getTime();
     }
 }
 
@@ -63,8 +153,90 @@ class DashSyncAdapter extends SyncAdapter {
     constructor(dashInstance, videoElement) {
         super(videoElement);
         this.dash = dashInstance;
+
         this.dash.updateSettings({
             streaming: {
+                // Need to disable liveCatchup and use suggested presentation delay
+                delay: {
+                    useSuggestedPresentationDelay: false
+                },
+                liveCatchup: {
+                    enabled: false, 
+                },  
+                // Config CMCD v2 to intercept. 
+                cmcd: {
+                    enabled: true,
+                    version: 2,
+                    targets: [{
+                        enabled: true,
+                        cmcdMode: 'response',
+                        mode: 'query',
+                        url: `${window.location.origin}/sync`,
+                        method: 'POST',
+                    }],
+                }
+            }
+        });
+
+        this.dash.addRequestInterceptor((request) => {
+            const { cmcd } = request;
+            if (!cmcd) return Promise.resolve(request);
+
+            //TODO: Add Playhead time, remove this code when CMCD v2 is supported with this key
+            cmcd['pt'] = this.getPlayheadTime().toFixed(0);
+            request.url += encodeURIComponent(',pt=' + cmcd['pt']);
+            
+            const latencyTarget = this.getTargetLatency();  
+            if (cmcd && latencyTarget) {
+                cmcd['com.svta-latency'] = latencyTarget;
+                request.url += encodeURIComponent(`,com.svta-latency="${cmcd['com.svta-latency']}"`);
+            }
+
+            //Clock Sync start
+            if (! this._clockSyncronized && !this._clockSyncInProgress) {
+                this._clockSyncInProgress = true;
+                this._clockSyncDateT0 = new Date().getTime(); // T0
+            }
+            return Promise.resolve(request);
+        });
+    
+        this.dash.addResponseInterceptor((response) => {
+            const cmcsdHeader = response.headers['cmsd-dynamic'];
+            if (!cmcsdHeader) return Promise.resolve(response);
+
+            const cmsd = parseCMSDHeader(cmcsdHeader);
+            this.setTargetLatency(cmsd.latency);
+            this.setLatencyTargets(cmsd.latencyTargets)
+
+            // Set clock
+            if (this._clockSyncInProgress) {
+                const clockSyncDateT1 = new Date(parseInt(cmsd.serverTime)).getTime();
+                const clockSyncDateT2 = new Date().getTime(); // T2
+                this._clockOffset = clockSyncDateT1 - ((this._clockSyncDateT0 + clockSyncDateT2) / 2);
+                this._clockSyncronized = true;
+                this._clockSyncInProgress = false;
+                this._clockSyncDateT0 = null;
+            }
+
+            // this.setClock(cmsd.serverTime)
+            return Promise.resolve(response);
+        });     
+    }
+
+    getPlayheadTime() {
+        if (!this.dash.isReady()) {
+            return 0
+        }
+        return player.getDashAdapter().getAvailabilityStartTime() + (player.time() * 1000);
+    }
+}
+
+class DashConfigSyncAdapter extends SyncAdapter {
+    constructor(dashInstance, videoElement) {
+        super(videoElement);
+        this.dash = dashInstance;
+        this.dash.updateSettings({
+            streaming: {         
                 cmcd: {
                     enabled: true,
                     version: 2,
@@ -85,7 +257,11 @@ class DashSyncAdapter extends SyncAdapter {
                 return Promise.resolve(request);
             }
 
-            const currentTarget = this.getTargetDelay();            
+            //TODO: Add Playhead time, remove this code when CMCD v2 is supported with this key
+            cmcd['pt'] = this.getPlayheadTime().toFixed(0);
+            request.url += encodeURIComponent(',pt=' + cmcd['pt']);
+
+            const currentTarget = this.getTargetLatency();            
             if (cmcd && currentTarget) {
                 const customKey = 'com.svta-latency';
                 const customKeyValue = currentTarget;
@@ -100,9 +276,9 @@ class DashSyncAdapter extends SyncAdapter {
                 return Promise.resolve(response);
             }
             const cmcsdHeader = response.headers['cmsd-dynamic'];
-            const latency = parseCMSDHeader(cmcsdHeader);
-            if (!isNaN(latency)) {
-                this.setTargetDelay(latency);
+            const cmsd = parseCMSDHeader(cmcsdHeader);
+            if (!isNaN(cmsd.latency)) {
+                this.setTargetLatency(latency);
                 this.dash.updateSettings({
                     streaming: {
                         delay: {
@@ -126,86 +302,68 @@ function createPlayerSyncAdapter(playerType, playerInstance, videoElement) {
         return new ShakaSyncAdapter(playerInstance, videoElement);
     } else if (playerType === 'dashjs') {
         return new DashSyncAdapter(playerInstance, videoElement);
+    } else if (playerType === 'dashjs-config') {
+        return new DashConfigSyncAdapter(playerInstance, videoElement);
     }
     throw new Error('Player not supported: ' + playerType);
 }
 
-function getLiveSyncDifference(adapter) {
-    const targetLatency = adapter.getTargetDelay();
-    if (!targetLatency) {
-        return null;
-    }
-    let liveLatency = adapter.getLatency();
-    console.log('Live Latency:', liveLatency);
-    console.log('Target Latency:', targetLatency);
-    console.log(liveLatency - targetLatency)
-    return liveLatency - targetLatency;
-}
-
 function startSynchronization(adapter) {
-    if (adapter instanceof DashSyncAdapter) {
+    if (adapter instanceof DashConfigSyncAdapter) {
         return;
     }
 
     setInterval(() => {
-        const liveSyncDifference = getLiveSyncDifference(adapter);
-        if (liveSyncDifference === null) {
-            return;
-        }
-        /*if (Math.abs(liveSyncDifference) > 2) {
-            adapter.seek(adapter.getCurrentTime() + liveSyncDifference);
-            adapter.setPlaybackRate(1);
-            return;
-        }*/
-    }, 1000);
+        if (adapter.getPlaying()) {
+            const liveSyncDifference = adapter.getLiveSyncDifference();
+            if (!liveSyncDifference) return;
 
-    setInterval(() => {
-        const liveSyncDifference = getLiveSyncDifference(adapter);
-        if (liveSyncDifference === null) {
-            return;
-        }
-        if (Math.abs(liveSyncDifference) < 0.005) {
-            adapter.setPlaybackRate(1);
-            return;
-        }
-        if (liveSyncDifference > 0) {
-            if (liveSyncDifference <= 0.1) {
-                adapter.setPlaybackRate(1.01);
-            } else if (liveSyncDifference <= 0.4) {
-                adapter.setPlaybackRate(1.1);
-            } else {
-                adapter.setPlaybackRate(2);
+            if (Math.abs(liveSyncDifference) < 0.005) {
+                adapter.setPlaybackRate(1);
+                return;
             }
-        } else {
-            if (liveSyncDifference >= -0.1) {
-                adapter.setPlaybackRate(0.99);
-            } else if (liveSyncDifference >= -0.4) {
-                adapter.setPlaybackRate(0.9);
+            if (liveSyncDifference > 0) {
+                if (liveSyncDifference <= 0.1) {
+                    adapter.setPlaybackRate(1.01);
+                } else if (liveSyncDifference <= 0.4) {
+                    adapter.setPlaybackRate(1.1);
+                } else {
+                    adapter.setPlaybackRate(2);
+                }
             } else {
-                adapter.setPlaybackRate(0.5);
+                if (liveSyncDifference >= -0.1) {
+                    adapter.setPlaybackRate(0.99);
+                } else if (liveSyncDifference >= -0.4) {
+                    adapter.setPlaybackRate(0.9);
+                } else {
+                    adapter.setPlaybackRate(0.5);
+                }
             }
         }
     }, 100);
 }
 
-async function updateLatency(cmcd, adapter) {
+async function updateLatency(cmcd) {
     try {
       const response = await fetch(window.location.origin + `/sync?CMCD=${encodeURIComponent(cmcd)}`);
       const cmsdHeader = response.headers.get('cmsd-dynamic');
       if (!cmsdHeader) return;
-      const latency = parseCMSDHeader(cmsdHeader);
-    if (!isNaN(latency)) {
-        adapter.setTargetDelay(latency);
-    }
+      return parseCMSDHeader(cmsdHeader);
     } catch (e) { 
       console.error('Error updating latency:', e);
     }
 }
 
-function parseCMSDHeader(cmsdHeader) {
+function parseCMSDHeader (cmsdHeader) {
     const latencyMatch = cmsdHeader.match(/com\.svta-latency="([^"]+)"/);
+    const latencyTargetsMatch = cmsdHeader.match(/com\.svta-latency-targets="([^"]+)"/);
+    const timeMatch = cmsdHeader.match(/com\.svta-time="([^"]+)"/);
+
     const latency = latencyMatch ? Number(latencyMatch[1]) : null;
-    return latency;
+    const latencyTargets = latencyTargetsMatch ? latencyTargetsMatch[1] : null;
+    const serverTime = timeMatch ? timeMatch[1] : null;   
+
+    return { latency, latencyTargets, serverTime };
 }
 
 // TODO configs:

@@ -6,6 +6,7 @@
 
     <script src="./dist/shaka-player.compiled.js"></script>
     <script src="./playerSyncPlugin.js"></script>
+    <script src="./chart.js"></script>    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
     <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
@@ -39,6 +40,7 @@
             const player = new shaka.Player();
             window.player = player;
             let adapter = playerSyncPlugin.createPlayerSyncAdapter('shaka', player, video);
+            window.syncAdapter = adapter;
             playerSyncPlugin.startSynchronization(adapter);
             
             const sessionId = crypto.randomUUID();
@@ -77,71 +79,12 @@
                     console.error('Error loading asset:', error);
                 }
             });
-            
-            setInterval(async () => {
-                const playheadTime = player.getPlayheadTimeAsDate()
-                document.querySelector('#clientTime').innerHTML = new Date();
-                document.querySelector('#playheadTime').innerHTML = playheadTime;
-                document.querySelector('#playheadTimeUNIX').innerHTML = playheadTime?.getTime();
-                document.querySelector('#liveLatency').innerHTML = parseFloat(player.getStats().liveLatency || 0).toFixed(2);
-                document.querySelector('#liveLatency').innerHTML = parseFloat(player.getStats().liveLatency || 0).toFixed(2);
-                document.querySelector('#bufferLength').innerHTML = parseFloat(getBufferLength() || 0).toFixed(2) + 's';
-                document.querySelector('#playbackRate').innerHTML = parseFloat(player.getPlaybackRate() || 1).toFixed(2);
-            }, 100);
-
-            function getBufferLength() {
-                const bufferedInfo = player.getBufferedInfo();
-                const currentTime = video?.currentTime || 0;
-
-                let bufferLength = 0;
-                if (bufferedInfo.video && bufferedInfo.video.length > 0) {
-                    for (const range of bufferedInfo.video) {
-                        if (range.start <= currentTime && currentTime <= range.end) {
-                            bufferLength = range.end - currentTime;
-                            break;
-                        }
-                    }
-                }   
-                return bufferLength;
-            }
-
-            player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                    const url = new URL(request.uris[0]);
-                    const cmcdParam = url.searchParams.get('CMCD');
-                    if (!cmcdParam) {
-                        return;
-                    }
-                    let newCmcdParam = cmcdParam + `,ts=${Date.now()},ph=${player.getPlayheadTimeAsDate()?.getTime()},pr=${video.playbackRate}`;
-                    url.searchParams.set('CMCD', newCmcdParam);
-                    request.uris[0] = url.toString();
-            });
-
-            player.getNetworkingEngine().registerResponseFilter((type, response) => {
-                const url = new URL(response.uri);
-                const cmcdParam = url.searchParams.get('CMCD');
-                if (cmcdParam) {
-                    playerSyncPlugin.updateLatency(cmcdParam, adapter);
-                }
-            });
-
-            const parseCMSDHeader = (response) => {
-                const cmsdHeader = response.headers.get('cmsd-dynamic');
-                if (!cmsdHeader) {
-                    return null;
-                }
-
-                const latencyMatch = cmsdHeader.match(/com\.svta-latency="([^"]+)"/);
-                const latencyTargetsMatch = cmsdHeader.match(/com\.svta-latency-targets="([^"]+)"/);
-                
-                const latency = latencyMatch ? Number(latencyMatch[1]) : null;
-                const latencyTargets = latencyTargetsMatch ? latencyTargetsMatch[1] : null;
-
-                return { latency, latencyTargets };
-            };
         }
 
         document.addEventListener('DOMContentLoaded', function () {
             init();
+            setupMetrics();
+            setupChart('metric-chart-player');            
         });
     </script>
 </head>
@@ -179,7 +122,7 @@
                     <h5> Player 1</h5>
                     <div class="code">
                         <video id="video1" controls="true" muted></video>
-                        <div>
+                        <div>                           
                             <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
@@ -193,7 +136,7 @@
         </div>
         <div class="row">
             <div class="col-lg-12">
-                <!-- Removed chart canvas -->
+                <canvas id="metric-chart-player" style="height: 300px;"></canvas>
             </div>
         </div>
         <footer class="pt-3 mt-4 text-muted border-top">

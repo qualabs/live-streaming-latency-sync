@@ -45,7 +45,7 @@ app.get('/sync', (req, res) => {
 
   //CHANGEME: Set the latency target based on the CMCD data and business logic
   // const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
-  const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}"`;
+  const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}",com.svta-time="${new Date().getTime()}"`;
   res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
   // console.log("Sending CMSD Dynamic Header:", CMSDDynamicValue);
   //CHANGEME: End
