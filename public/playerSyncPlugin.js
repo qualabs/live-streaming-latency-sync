@@ -120,11 +120,11 @@ class DashSyncAdapter extends SyncAdapter {
 }
 
 function createPlayerSyncAdapter(playerType, playerInstance, videoElement) {
-    if (playerType === 'hls') {
+    if (playerType === 'hlsjs') {
         return new HlsSyncAdapter(playerInstance, videoElement);
     } else if (playerType === 'shaka') {
         return new ShakaSyncAdapter(playerInstance, videoElement);
-    } else if (playerType === 'dash') {
+    } else if (playerType === 'dashjs') {
         return new DashSyncAdapter(playerInstance, videoElement);
     }
     throw new Error('Player not supported: ' + playerType);

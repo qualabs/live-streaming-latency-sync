@@ -22,14 +22,14 @@
             window.player1 = player1;
 
             player1.initialize(video,'' ,true);
-            playerSyncPlugin.createPlayerSyncAdapter('dash', player1, video);
+            playerSyncPlugin.createPlayerSyncAdapter('dashjs', player1, video);
 
             video = document.querySelector('#video2');
             player2 = dashjs.MediaPlayer().create();
             window.player2 = player2;
 
             player2.initialize(video, '', true);
-            playerSyncPlugin.createPlayerSyncAdapter('dash', player2, video);
+            playerSyncPlugin.createPlayerSyncAdapter('dashjs', player2, video);
 
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');
