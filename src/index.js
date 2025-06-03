@@ -8,9 +8,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DEFALUT_LATENCY_TARGETS = process.env.LATENCY_TARGETS || '3,6,9';
 const DEFALUT_LATENCY_TARGET = process.env.LATENCY_TARGET || '12';
+const DEFALUT_DISABLE_CLOCK_SYNC = process.env.DISABLE_CLOCK_SYNC  === 'true' || false;
 
 let latencyTargets = DEFALUT_LATENCY_TARGETS;
 let latencyTarget = DEFALUT_LATENCY_TARGET;
+let disableClockSync = DEFALUT_DISABLE_CLOCK_SYNC
 
 app.use(express.json());
 app.use('/', express.static('public'));
@@ -45,7 +47,10 @@ app.get('/sync', (req, res) => {
 
   //CHANGEME: Set the latency target based on the CMCD data and business logic
   // const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
-  const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}",com.svta-time="${new Date().getTime()}"`;
+  let CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}"`;
+  if (!disableClockSync){
+    CMSDDynamicValue = CMSDDynamicValue + `,com.svta-time="${new Date().getTime()}"`;
+  }
   res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
   // console.log("Sending CMSD Dynamic Header:", CMSDDynamicValue);
   //CHANGEME: End
@@ -71,11 +76,13 @@ app.post('/update-latency', (req, res) => {
   if (req.body.latencyTarget && req.body.latencyTargets) {
     latencyTarget = req.body.latencyTarget;
     latencyTargets = req.body.latencyTargets;
-    console.log(`Updated latencyTarget to ${latencyTarget} and latencyTargets to ${latencyTargets}`);
+    disableClockSync = req.body.disableClockSync? true: false;
+    console.log(`Updated latencyTarget to ${latencyTarget}, latencyTargets to ${latencyTargets}, disableClockSync to ${disableClockSync}`);
     res.json({ 
       message: 'latencyTarget and latencyTargets updated', 
       latency: latencyTarget, 
-      latencyTargets: latencyTargets 
+      latencyTargets: latencyTargets,
+      disableClockSync: disableClockSync
     });
   } else {
     // Handle missing parameters
@@ -88,7 +95,8 @@ app.get('/get-latency', (req, res) => {
   res.json({ 
     message: 'latencyTarget and latencyTargets updated', 
     latency: latencyTarget, 
-    latencyTargets: latencyTargets 
+    latencyTargets: latencyTargets, 
+    disableClockSync: disableClockSync
   });
 });
 

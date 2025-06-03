@@ -316,11 +316,11 @@ class DashConfigSyncAdapter extends SyncAdapter {
             const cmcsdHeader = response.headers['cmsd-dynamic'];
             const cmsd = parseCMSDHeader(cmcsdHeader);
             if (!isNaN(cmsd.latency)) {
-                this.setTargetLatency(latency);
+                this.setTargetLatency(cmsd.latency);
                 this.dash.updateSettings({
                     streaming: {
                         delay: {
-                            liveDelay: latency
+                            liveDelay: cmsd.latency
                         },
                         liveCatchup: {
                             enabled: true, 
@@ -330,6 +330,13 @@ class DashConfigSyncAdapter extends SyncAdapter {
             }
             return Promise.resolve(response);
         });
+    }
+    
+    getPlayheadTime() {
+        if (!this.dash.isReady()) {
+            return 0
+        }
+        return player.getDashAdapter().getAvailabilityStartTime() + (player.time() * 1000);
     }
 }
 

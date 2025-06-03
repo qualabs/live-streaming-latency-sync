@@ -65,6 +65,13 @@ Notice: This web page was generated using Gemini 2.5 Pro
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="Loading...">
             </div>
+            <div>
+                <label for="disableClockSync" class="flex items-center text-sm font-medium text-gray-700">
+                    <input type="checkbox" id="disableClockSync" name="disableClockSync"
+                           class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mr-2">
+                    Disable Clock Synchronization
+                </label>
+            </div>            
             <button type="submit"
                 class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                 Update Latency
@@ -94,6 +101,8 @@ Notice: This web page was generated using Gemini 2.5 Pro
         const clearDataForm = document.getElementById('clear-data-form');
         const latencyTargetInput = document.getElementById('latencyTarget');
         const latencyTargetsInput = document.getElementById('latencyTargets');
+        const disableClockSyncInput = document.getElementById('disableClockSync');
+
         const messageArea = document.getElementById('message-area');
 
         const updateUrl = '/update-latency';
@@ -124,21 +133,26 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 const result = await response.json();
 
                 // Check if the request was successful
-                if (response.ok && result.latency !== undefined && result.latencyTargets !== undefined) {
+                if (response.ok && result.latency !== undefined && result.latencyTargets !== undefined && result.disableClockSync !== undefined) {
                     // Populate the input fields with the fetched values
                     latencyTargetInput.value = result.latency;
                     latencyTargetsInput.value = result.latencyTargets;
                     // Optionally clear placeholder or display a success message
                     latencyTargetInput.placeholder = "Enter single target value";
                     latencyTargetsInput.placeholder = "Enter comma-separated targets";
+                    disableClockSyncInput.checked = result.disableClockSync
                     console.log('Initial values loaded:', result);
                 } else {
                     // Handle server-side errors or missing data
-                    const errorMsg = result.error || `Server responded with status: ${response.status} or missing data.`;
+                    let errorMsg = result.error || `Server responded with status: ${response.status}`;
+                    if (result.latency === undefined || result.latencyTargets === undefined || result.disableClockSync === undefined) {
+                        errorMsg += " (Incomplete data received)";
+                    }                    
                     displayMessage(`Failed to load initial values: ${errorMsg}`, 'error');
                     // Reset placeholders on error
                     latencyTargetInput.placeholder = "Enter single target value";
                     latencyTargetsInput.placeholder = "Enter comma-separated targets";
+                    disableClockSyncInput.checked = false;
                 }
             } catch (error) {
                 // Handle network errors
@@ -155,6 +169,7 @@ Notice: This web page was generated using Gemini 2.5 Pro
             messageArea.innerHTML = '';
             const latencyTarget = latencyTargetInput.value.trim();
             const latencyTargets = latencyTargetsInput.value.trim();
+            const disableClockSync = disableClockSyncInput.checked
 
             if (!latencyTarget || !latencyTargets) {
                 displayMessage('Please fill in both fields.', 'error');
@@ -167,6 +182,7 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 // If string: latencyTargets: latencyTargets
                 // If array: latencyTargets: latencyTargets.split(',').map(s => s.trim()).filter(s => s)
                 latencyTargets: latencyTargets, // Send as string, server can parse
+                disableClockSync: disableClockSync
             };
 
             try {
@@ -178,9 +194,12 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 const result = await response.json();
                 if (response.ok) {
                     let successMsg = result.message || 'Latency updated successfully.';
-                    if (result.latency && result.latencyTargets) {
+                    if (result.latency !== undefined && result.latencyTargets !== undefined) {
                         successMsg += ` New Target: ${result.latency}, New Targets: ${Array.isArray(result.latencyTargets) ? result.latencyTargets.join(', ') : result.latencyTargets}`;
                     }
+                    if (result.disableClockSync !== undefined) {
+                        successMsg += `, Sync Clocks: ${result.disableClockSync ? 'Disabled' : 'Enabled'}`;
+                     }                    
                     displayMessage(successMsg, 'success');
                 } else {
                     const errorMsg = result.error || `Server responded with status: ${response.status}`;
