@@ -50,6 +50,8 @@
                         <video id="video" controls muted></video>
                         <div>
                             <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Client sync time: <span id="clientSyncTime"></span></div>
+                            <div><i class="bi bi-arrow-right-square"></i> Client sync clock offset: <span id="clientSyncOffset"></span></div>                            
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
@@ -82,6 +84,10 @@
         const loadButton = document.getElementById('load-button');
         const urlSelect = document.getElementById('url-select');
         const customUrl = document.getElementById('custom-url');
+
+        // Setup the metrics display
+        setupMetrics();
+        setupChart('metric-chart-player');
 
         urlSelect.addEventListener('change', () => {
           if (urlSelect.value === 'custom') {
@@ -123,11 +129,9 @@
             });
 
             adapter = playerSyncPlugin.createPlayerSyncAdapter('hlsjs', hls, video);
+            playerSyncPlugin.startSynchronization(adapter);
             window.syncAdapter = adapter;   
 
-            playerSyncPlugin.startSynchronization(adapter);
-            setupMetrics();
-            setupChart('metric-chart-player');
           }        
         });
       }); 

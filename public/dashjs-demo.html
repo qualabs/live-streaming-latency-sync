@@ -2,18 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Synchronized live playback with Shaka Player</title>
+    <title>Synchronized live playback</title>
 
-    <script src="./dist/shaka-player.compiled.js"></script>
+    <script src="./dist/modern/umd/dash.all.debug.js"></script>
     <script src="./playerSyncPlugin.js"></script>
-    <script src="./chart.js"></script>    
+    <script src="./chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
 
+    <!-- Bootstrap core CSS -->
     <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
     <link href="./lib/main.css" rel="stylesheet">
 
+    <script class="code">
+        function init() {
+            var player, video;
+
+            video = document.querySelector('#video1');
+            player = dashjs.MediaPlayer().create();
+            window.player = player;
+
+            player.initialize(video,'' ,true);
+            const adapter = playerSyncPlugin.createPlayerSyncAdapter('dashjs', player, video);
+            playerSyncPlugin.startSynchronization(adapter);
+            window.syncAdapter = adapter;
+
+            const loadButton = document.getElementById('load-button');
+            const urlSelect = document.getElementById('url-select');
+            const customUrl = document.getElementById('custom-url');
+
+            urlSelect.addEventListener('change', () => {
+                if(urlSelect.value === 'custom') {
+                    customUrl.disabled = false;
+                    customUrl.value = '';
+                } else {
+                    customUrl.value = urlSelect.value;
+                    customUrl.disabled = true;
+                }
+            });
+
+            loadButton.addEventListener('click', () => {
+                const enteredUrl = customUrl.value.trim();
+                const selectedUrl = urlSelect.value;
+                player.attachSource(enteredUrl !== '' ? enteredUrl : selectedUrl);
+            });
+
+        }
+    </script>
     <style>
+
         table {
             border-spacing: 10px;
         }
@@ -27,81 +64,21 @@
             font-size: 60pt
         }
     </style>
-
-    <script class="code">
-        async function init() {
-            shaka.polyfill.installAll();
-            if (!shaka.Player.isBrowserSupported()) {
-                console.error('Browser not supported!');
-                return
-            }
-            
-            const video = document.querySelector('#video1');
-            const player = new shaka.Player();
-            window.player = player;
-
-            const adapter = playerSyncPlugin.createPlayerSyncAdapter('shaka', player, video);
-            playerSyncPlugin.startSynchronization(adapter);
-            window.syncAdapter = adapter;
-            
-            const sessionId = crypto.randomUUID();
-            
-            player.configure({
-                cmcd: {
-                    enabled: true,
-                    version: 2,
-                    sessionId: sessionId,
-                    contentId: 'sync-content',
-                }
-            });
-            
-            const loadButton = document.getElementById('load-button');
-            const urlSelect = document.getElementById('url-select');
-            const customUrl = document.getElementById('custom-url');
-
-            urlSelect.addEventListener('change', () => {
-                if (urlSelect.value === 'custom') {
-                    customUrl.disabled = false;
-                    customUrl.value = '';
-                } else {
-                    customUrl.value = urlSelect.value;
-                    customUrl.disabled = true;
-                }
-            });
-
-            loadButton.addEventListener('click', async () => {
-                const enteredUrl = customUrl.value.trim();
-                const selectedUrl = urlSelect.value;
-                try {
-                    await player.attach(video);
-                    await player.load(enteredUrl !== '' ? enteredUrl : selectedUrl);
-                    video.play();
-                } catch (error) {
-                    console.error('Error loading asset:', error);
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            init();
-
-            // Initialize metrics and charts
-            setupMetrics();
-            setupChart('metric-chart-player');            
-        });
-    </script>
 </head>
 <body>
+
 <main>
     <div class="container py-4">
         <header class="pb-3 mb-4 border-bottom">
-            <img class="" src="https://raw.githubusercontent.com/shaka-project/shaka-player/HEAD/docs/shaka-player-logo.png" width="100">
+            <img class=""
+                 src="./lib/img/dashjs-logo.png"
+                 width="200">
         </header>
         <div class="row margin-top-row">
             <div class="col-md-12">
                 <div class="h-100 p-5 bg-light border rounded-3">
                     <h3>Synchronized live playback</h3>
-                    <p>This sample illustrates how to use global player synchronization with Shaka Player.</p>
+                    <p>This sample illustrates how to use the global player synchronization with dash.js</p>
                 </div>
             </div>
         </div>
@@ -115,6 +92,7 @@
                         Live</option>
                     <option value="https://cmafref.akamaized.net/cmaf/live-ull/2006350/akambr/out.mpd">Low latency Live
                     </option>
+                    <option value="https://demo.gvideo.io/cmaf/2675_19146/index.mpd">Low latency Live (DASH/HLS)</option>
                 </select>
                 <input id="custom-url" type="text" class="form-control" placeholder="Paste your own DASH manifest URL here" style="margin-left: 8px;">
             </div>
@@ -128,7 +106,7 @@
                         <div>                           
                             <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Client sync time: <span id="clientSyncTime"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Client sync clock offset: <span id="clientSyncOffset"></span></div>                            
+                            <div><i class="bi bi-arrow-right-square"></i> Client sync clock offset: <span id="clientSyncOffset"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
                             <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
@@ -145,9 +123,18 @@
             </div>
         </div>
         <footer class="pt-3 mt-4 text-muted border-top">
-            &copy; Shaka Player Demo
+            &copy; DASH-IF
         </footer>
     </div>
 </main>
+<script class="code">
+    document.addEventListener('DOMContentLoaded', function () {
+        init();
+
+        // Initialize the Metrics and Charts
+        setupMetrics();
+        setupChart('metric-chart-player');
+    });
+</script>
 </body>
 </html>

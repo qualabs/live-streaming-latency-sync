@@ -1,140 +1,95 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Synchronized live playback</title>
-
-    <script src="./dist/modern/umd/dash.all.debug.js"></script>
-    <script src="./playerSyncPlugin.js"></script>
-    <script src="./chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.3.2/dist/chart.min.js"></script>
-
-    <!-- Bootstrap core CSS -->
-    <link href="./lib/bootstrap/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
-    <link href="./lib/main.css" rel="stylesheet">
-
-    <script class="code">
-        function init() {
-            var player, video;
-
-            video = document.querySelector('#video1');
-            player = dashjs.MediaPlayer().create();
-            window.player = player;
-
-            player.initialize(video,'' ,true);
-            window.syncAdapter = playerSyncPlugin.createPlayerSyncAdapter('dashjs', player, video);
-            playerSyncPlugin.startSynchronization(window.syncAdapter);
-
-            const loadButton = document.getElementById('load-button');
-            const urlSelect = document.getElementById('url-select');
-            const customUrl = document.getElementById('custom-url');
-
-            urlSelect.addEventListener('change', () => {
-                if(urlSelect.value === 'custom') {
-                    customUrl.disabled = false;
-                    customUrl.value = '';
-                } else {
-                    customUrl.value = urlSelect.value;
-                    customUrl.disabled = true;
-                }
-            });
-
-            loadButton.addEventListener('click', () => {
-                const enteredUrl = customUrl.value.trim();
-                const selectedUrl = urlSelect.value;
-                player.attachSource(enteredUrl !== '' ? enteredUrl : selectedUrl);
-            });
-
-        }
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player Demos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-
-        table {
-            border-spacing: 10px;
+        body {
+            font-family: 'Inter', sans-serif;
         }
-
-        video {
-            width: 100%;
-        }
-
-        .clock {
-            color: #000;
-            font-size: 60pt
+        /* Style for the button container to ensure it's always at the bottom on small screens */
+        @media (max-width: 768px) {
+            .button-container {
+                flex-direction: column;
+                align-items: stretch; /* Makes buttons take up full width */
+            }
+            .button-container > div {
+                width: 100%;
+                margin-bottom: 0.75rem; /* 12px */
+            }
+            .button-container > div:last-child {
+                margin-bottom: 0;
+            }
+            .button-container a, .button-container button {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
 
-<main>
-    <div class="container py-4">
-        <header class="pb-3 mb-4 border-bottom">
-            <img class=""
-                 src="./lib/img/dashjs-logo.png"
-                 width="200">
+    <div class="w-full max-w-4xl">
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-semibold text-gray-800">Live Syncronization Demo</h1>
+            <p class="text-gray-600 mt-2">Select a video player or configure the server parameters.</p>
         </header>
-        <div class="row margin-top-row">
-            <div class="col-md-12">
-                <div class="h-100 p-5 bg-light border rounded-3">
-                    <h3>Synchronized live playback</h3>
-                    <p>This sample illustrates how to use tglobal player synchronization. Also:</p>
-                    <li>Synchronize with <a href="shaka-demo.html">shaka</a></li>
-                    <li>Synchronize with <a href="hls-demo.html">hls</a></li>
-                    <li>Try the <a href="dual.html">dual player sample</a></li>
-                    <li>Set the latency target using <a href="setlatency.html" target="_blank">this web page</a></li>
 
+        <main>
+            <div class="flex flex-wrap justify-center items-center gap-4 md:gap-6 button-container">
+
+                <div class="w-full sm:w-auto md:flex-1 min-w-[200px] max-w-xs">
+                    <a href="./dashjs-demo.html"
+                       class="flex flex-col items-center bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out border border-gray-200 hover:border-blue-500">
+                        <img src="./lib/img/dashjs-logo.png" alt="Dash.js Logo" class="h-16 w-16 mb-4 object-contain rounded">
+                        <span class="text-lg font-medium text-gray-700">Dash.js Demo</span>
+                    </a>
                 </div>
-            </div>
-        </div>
-        <div class="row margin-top-row">
-            <div class="input-group">
-                <button id="load-button" type="button" class="btn btn-primary" aria-haspopup="true" aria-expanded="false">Load</button>
-                <select id="url-select" class="dropdown-toggle">
-                    <option value="custom">Custom</option>
-                    <option
-                        value="https://livesim.dashif.org/livesim2/WAVE/vectors/cfhd_sets/12.5_25_50/t1/2022-10-17/stream.mpd">
-                        Live</option>
-                    <option value="https://cmafref.akamaized.net/cmaf/live-ull/2006350/akambr/out.mpd">Low latency Live
-                    </option>
-                    <option value="https://demo.gvideo.io/cmaf/2675_19146/index.mpd">Low latency Live (DASH/HLS)</option>
-                </select>
-                <input id="custom-url" type="text" class="form-control" placeholder="Paste your own DASH manifest URL here" style="margin-left: 8px;">
-            </div>
-        </div>
-        <div class="row margin-top-row">
-            <div class="col-md-12">
-                <div class="h-100 p-5 border rounded-3">
-                    <h5> Player 1</h5>
-                    <div class="code">
-                        <video id="video1" controls="true" muted></video>
-                        <div>                           
-                            <div><i class="bi bi-arrow-right-square"></i> Client time: <span id="clientTime"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Playhead time: <span id="playheadTime"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Playhead time (UNIX Timestamp): <span id="playheadTimeUNIX"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Seconds behind live: <span id="liveLatency"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Buffer length: <span id="bufferLength"></span></div>
-                            <div><i class="bi bi-arrow-right-square"></i> Playback rate: <span id="playbackRate"></span></div>
-                        </div>
-                    </div>
+
+                <div class="w-full sm:w-auto md:flex-1 min-w-[200px] max-w-xs">
+                    <a href="./shaka-demo.html"
+                       class="flex flex-col items-center bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out border border-gray-200 hover:border-green-500">
+                        <img src="https://raw.githubusercontent.com/shaka-project/shaka-player/HEAD/docs/shaka-player-logo.png" alt="Shaka Player Logo" class="h-16 w-16 mb-4 object-contain rounded">
+                        <span class="text-lg font-medium text-gray-700">Shaka Player Demo</span>
+                    </a>
                 </div>
+
+                <div class="w-full sm:w-auto md:flex-1 min-w-[200px] max-w-xs">
+                    <a href="./hlsjs-demo.html"
+                       class="flex flex-col items-center bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out border border-gray-200 hover:border-red-500">
+                        <img src="https://raw.githubusercontent.com/video-dev/hls.js/master/docs/logo.svg" alt="HLS.js Logo" class="h-16 w-16 mb-4 object-contain rounded">
+                        <span class="text-lg font-medium text-gray-700">HLS.js Demo</span>
+                    </a>
+                </div>
+                <div>
+                <div class="w-full sm:w-auto md:flex-1 min-w-[200px] max-w-xs">
+                    <a href="./set-latency.html"
+                       class="flex flex-col items-center bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out border border-gray-200 hover:border-purple-500">
+                        <svg class="h-16 w-16 mb-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.108 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.11v1.093c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.78.93l-.15.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.149-.894c-.07-.424-.384-.764-.78-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.11v-1.094c0-.55.398-1.019.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.93l.15-.893Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <span class="text-lg font-medium text-gray-700">Config and Visualize Latency</span>
+                        <span class="text-sm text-gray-500">(server config)</span>
+                    </a>
+                </div>
+                </div>
+
             </div>
-        </div>
-        <div class="row">
-            <div class="col-lg-12">
-                <canvas id="metric-chart-player" style="height: 300px;"></canvas>
-            </div>
-        </div>
-        <footer class="pt-3 mt-4 text-muted border-top">
-            &copy; DASH-IF
+        </main>
+
+        <footer class="mt-16 text-center">
+            <p class="text-sm text-gray-500">&copy; <span id="currentYear"></span> Built by Qualabs. </p>
         </footer>
     </div>
-</main>
-<script class="code">
-    document.addEventListener('DOMContentLoaded', function () {
-        init();
-        setupMetrics();
-        setupChart('metric-chart-player');
-    });
-</script>
+
+    <script>
+        // Script for the current year in the footer
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+
 </body>
 </html>

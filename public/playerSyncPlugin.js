@@ -51,14 +51,11 @@ class SyncAdapter {
             console.log('Clock Syncronized. Offset:', this.getClockOffset())
         }
     }
+    
     getClockOffset() {
         return this._clockOffset
     }
 
-    seek(time) {
-        if (!time) return;
-        this.video.currentTime = this.video.currentTime - time;
-    }
     getBufferAhead(){
         let bufferAhead = 0;
         const video = this.video;
@@ -74,41 +71,50 @@ class SyncAdapter {
         }
         return bufferAhead;
     }
+
     getPlaybackRate() {
         return this.video.playbackRate? this.video.playbackRate : 0;
     }
+
     setPlaybackRate(rate) {
         if (!rate) return;
         this.video.playbackRate = rate;
-    }   
+    }
+
     setLatencyTargets(latencyTargets) {
         if (!latencyTargets) return;
         this._latencyTargets = latencyTargets;
     }
+
     setTargetLatency(latency) {
         if (!latency) return;
         this._targetLatency = latency;
     }
+
     getTargetLatency() {
         return this._targetLatency;
     }
     getClientTime(){
         return new Date().getTime() + this.getClockOffset()
     }
+
     getLatency() {
         const pt = this.getPlayheadTime()
         if (!pt) return null;
         return (this.getClientTime() - pt) / 1000
     }
+
     getPlaying() {
         return !this.video.paused && !this.video.seeking
     }
+
     getReady() {
         if (this.getPlaying()){
             this._ready = true;
         }
         return this._ready;
-    }    
+    }   
+
     getLiveSyncDifference(){
         const targetLatency = this.getTargetLatency();
         const liveLatency = this.getLatency();
@@ -142,9 +148,11 @@ class HlsSyncAdapter extends SyncAdapter {
         this.setTargetLatency(cmsd.latency)
         this.setLatencyTargets(cmsd.latencyTargets)
     }
+
     getBufferLength(){
         return null;
     }
+
     getPlayheadTime() {
         if (!this.hls.playingDate) return null;
         return this.hls.playingDate.getTime()
@@ -414,8 +422,7 @@ function parseCMSDHeader (cmsdHeader) {
 (() => {
     const playerSyncPlugin = {
         createPlayerSyncAdapter,
-        startSynchronization,
-        updateLatency,
+        startSynchronization
         // configure: configurePlayerSyncPlugin
     };
 

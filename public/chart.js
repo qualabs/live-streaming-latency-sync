@@ -2,6 +2,8 @@ function setupMetrics(){
     setInterval(function () {
         if (window.syncAdapter && window.syncAdapter.getReady()){ 
             document.querySelector('#clientTime').innerHTML = new Date();
+            document.querySelector('#clientSyncTime').innerHTML = window.syncAdapter.getClientTime().toFixed(0);
+            document.querySelector('#clientSyncOffset').innerHTML = window.syncAdapter.getClockOffset().toFixed(2);
             document.querySelector('#playheadTime').innerHTML = new Date(window.syncAdapter.getPlayheadTime());
             document.querySelector('#playheadTimeUNIX').innerHTML = window.syncAdapter.getPlayheadTime()?.toFixed(0);                
             document.querySelector('#liveLatency').innerHTML =  window.syncAdapter.getLatency()?.toFixed(2) + 's';
