@@ -5,8 +5,10 @@ class SyncAdapter {
         this._ready = false;
         this.video = videoElement;
 
-        // Clock Sync against server
+        // Clock Sync against server, we use the AVG offset to avoid clock drift. 
         this._clockOffset = 0;
+        this._clockOffsetArray = []
+        this._clockOffsetArrayMaxSize = 10; // Max size of the clock offset array
         this._clockSyncronized = false;
         this._clockSyncInProgress = false;
         
@@ -15,8 +17,44 @@ class SyncAdapter {
         setInterval(() => {
             // Sincronize clock every X seconds
             this._clockSyncronized = false;
-        }, 5000);
+        }, 1000);
     }
+
+    startClockSync(){
+        if (! this._clockSyncronized && !this._clockSyncInProgress) {
+            this._clockSyncInProgress = true;
+            this._clockSyncDateT0 = new Date().getTime(); // T0
+        }
+    }
+
+    endClockSync(serverTime) {
+        if (serverTime && this._clockSyncInProgress && this._clockSyncDateT0) {
+            const clockSyncDateT2 = new Date().getTime(); // T2
+            const clockSyncDateT1 = new Date(parseInt(serverTime)).getTime(); //T1
+            const newOffset = clockSyncDateT1 - ((this._clockSyncDateT0 + clockSyncDateT2) / 2)
+            this._clockOffsetArray.push(newOffset);
+
+            // Removes the first element from the array if Array is full
+            if (this._clockOffsetArray.length > this._clockOffsetArrayMaxSize) {
+                this._clockOffsetArray.shift(); 
+            }
+
+            let offsetSum = 0;
+            for (let i = 0; i < this._clockOffsetArray.length; i++) {
+                offsetSum += this._clockOffsetArray[i];
+            }
+            
+            this._clockOffset = offsetSum / this._clockOffsetArray.length;
+            this._clockSyncronized = true;
+            this._clockSyncInProgress = false;
+            this._clockSyncDateT0 = null;
+            console.log('Clock Syncronized. Offset:', this.getClockOffset())
+        }
+    }
+    getClockOffset() {
+        return this._clockOffset
+    }
+
     seek(time) {
         if (!time) return;
         this.video.currentTime = this.video.currentTime - time;
@@ -55,7 +93,7 @@ class SyncAdapter {
         return this._targetLatency;
     }
     getClientTime(){
-        return new Date().getTime() + this._clockOffset
+        return new Date().getTime() + this.getClockOffset()
     }
     getLatency() {
         const pt = this.getPlayheadTime()
@@ -78,7 +116,7 @@ class SyncAdapter {
         console.log('Live Latency:', liveLatency);
         console.log('Target Latency:', targetLatency);
         console.log('Latency dif: ', (liveLatency - targetLatency).toFixed(4))
-        console.log('Clock Offset:', this._clockOffset);
+        console.log('Clock Offset:', this.getClockOffset());
         return liveLatency - targetLatency;
     }
 }
@@ -96,12 +134,13 @@ class HlsSyncAdapter extends SyncAdapter {
     
         let newCmcdParam = cmcdParam + `,ltc=${this.getLatency()},ts=${Date.now()},pt=${this.getPlayheadTime()},pr=${this.getPlaybackRate()}`;
         parsedUrl.searchParams.set('CMCD', newCmcdParam);
-
+        
+        this.startClockSync()
         const cmsd = await updateLatency(cmcdParam);
+        this.endClockSync(cmsd.serverTime)
+
         this.setTargetLatency(cmsd.latency)
         this.setLatencyTargets(cmsd.latencyTargets)
-        // TODO: Sincronize client time
-        // this.setClock(cmsd.serverTime)
     }
     getBufferLength(){
         return null;
@@ -124,6 +163,7 @@ class ShakaSyncAdapter extends SyncAdapter {
             let newCmcdParam = cmcdParam + `,ts=${Date.now()},pt=${this.getPlayheadTime()},pr=${this.getPlaybackRate()}`;
             url.searchParams.set('CMCD', newCmcdParam);
             request.uris[0] = url.toString();
+            
         });
 
         this.shaka.getNetworkingEngine().registerResponseFilter((type, response) => {
@@ -132,11 +172,11 @@ class ShakaSyncAdapter extends SyncAdapter {
             if (cmcdParam) {
                 // SetTimout in 0 to not block the player thread.
                 setTimeout(async ()=>{
+                    this.startClockSync();
                     const cmsd = await updateLatency(cmcdParam);
+                    this.endClockSync(cmsd.serverTime)
                     this.setTargetLatency(cmsd.latency)
                     this.setLatencyTargets(cmsd.latencyTargets)
-                    // TODO: Sincronize client time
-                    // this.setClock(cmsd.serverTime)
                 }, 0)
             }
         });        
@@ -192,11 +232,9 @@ class DashSyncAdapter extends SyncAdapter {
                 request.url += encodeURIComponent(`,com.svta-latency="${cmcd['com.svta-latency']}"`);
             }
 
-            //Clock Sync start
-            if (! this._clockSyncronized && !this._clockSyncInProgress) {
-                this._clockSyncInProgress = true;
-                this._clockSyncDateT0 = new Date().getTime(); // T0
-            }
+            // Clock Sync start
+            this.startClockSync()
+
             return Promise.resolve(request);
         });
     
@@ -204,21 +242,12 @@ class DashSyncAdapter extends SyncAdapter {
             const cmcsdHeader = response.headers['cmsd-dynamic'];
             if (!cmcsdHeader) return Promise.resolve(response);
 
+            // Update values and end clock sync
             const cmsd = parseCMSDHeader(cmcsdHeader);
+            this.endClockSync(cmsd.serverTime)
             this.setTargetLatency(cmsd.latency);
             this.setLatencyTargets(cmsd.latencyTargets)
 
-            // Set clock
-            if (this._clockSyncInProgress) {
-                const clockSyncDateT1 = new Date(parseInt(cmsd.serverTime)).getTime();
-                const clockSyncDateT2 = new Date().getTime(); // T2
-                this._clockOffset = clockSyncDateT1 - ((this._clockSyncDateT0 + clockSyncDateT2) / 2);
-                this._clockSyncronized = true;
-                this._clockSyncInProgress = false;
-                this._clockSyncDateT0 = null;
-            }
-
-            // this.setClock(cmsd.serverTime)
             return Promise.resolve(response);
         });     
     }
