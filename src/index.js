@@ -74,7 +74,7 @@ app.post('/update-latency', (req, res) => {
   if (req.body.latencyTarget && req.body.latencyTargets) {
     latencyTarget = req.body.latencyTarget;
     latencyTargets = req.body.latencyTargets;
-    disableClockSync = req.body.disableClockSync? true: false;
+    disableClockSync = req.body.disableClockSync ?? false;
     console.log(`Updated latencyTarget to ${latencyTarget}, latencyTargets to ${latencyTargets}, disableClockSync to ${disableClockSync}`);
     res.json({ 
       message: 'latencyTarget and latencyTargets updated', 
