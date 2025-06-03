@@ -44,17 +44,15 @@ app.get('/sync', (req, res) => {
   // console.log("Received CMCD:", req.query['CMCD']);
   const cmcdData = parseCMCDQueryToJson(req.query['CMCD']);
   savePlayerData(cmcdData);
-
-  //CHANGEME: Set the latency target based on the CMCD data and business logic
-  // const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
+  
+  //CHANGEME: Set the latency target based on the CMCD data, content configuration and other business rules
   let CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}"`;
+  res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
+  //CHANGEME: End
+
   if (!disableClockSync){
     CMSDDynamicValue = CMSDDynamicValue + `,com.svta-time="${new Date().getTime()}"`;
   }
-  res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
-  // console.log("Sending CMSD Dynamic Header:", CMSDDynamicValue);
-  //CHANGEME: End
-
   res.status(200).end();
 });
 
