@@ -138,11 +138,12 @@ class HlsSyncAdapter extends SyncAdapter {
         let cmcdParam = parsedUrl.searchParams.get('CMCD');
         if (!cmcdParam) return;
     
+        //TODO: Add CMCD v2 parameters, remove when CMCD v2 is added to hls.js 
         let newCmcdParam = cmcdParam + `,ltc=${this.getLatency()},ts=${Date.now()},pt=${this.getPlayheadTime()},pr=${this.getPlaybackRate()}`;
         parsedUrl.searchParams.set('CMCD', newCmcdParam);
         
         this.startClockSync()
-        const cmsd = await updateLatency(cmcdParam);
+        const cmsd = await updateLatency(newCmcdParam);
         this.endClockSync(cmsd.serverTime)
 
         this.setTargetLatency(cmsd.latency)

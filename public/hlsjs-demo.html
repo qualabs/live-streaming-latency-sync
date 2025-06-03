@@ -119,6 +119,13 @@
               }, 0);
             }
           });
+          
+          // Add the Sync plugin
+          adapter = playerSyncPlugin.createPlayerSyncAdapter('hlsjs', hls, video);
+          playerSyncPlugin.startSynchronization(adapter);
+          
+          // Expose the adapter and player globally
+          window.syncAdapter = adapter;  
           window.player = hls;
 
           if (Hls.isSupported()) {
@@ -127,11 +134,6 @@
             hls.on(Hls.Events.MEDIA_ATTACHED, function () {
               video.play();
             });
-
-            adapter = playerSyncPlugin.createPlayerSyncAdapter('hlsjs', hls, video);
-            playerSyncPlugin.startSynchronization(adapter);
-            window.syncAdapter = adapter;   
-
           }        
         });
       }); 
