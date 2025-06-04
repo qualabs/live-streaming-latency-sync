@@ -1,8 +1,10 @@
 # Global playback synchronization for HLS and MPEG-DASH live content
 
-This project demonstrates global synchronization for live media playback using CMCD v2 and CMSD. 
+To enable a synchronization mechanism for live HLS and MPEG-DASH content using standard and open tools, this project proposes a method leveraging CMCD and CMSD, along with some custom keys.
 
-It includes:
+Essentially, players will report their playhead time, latency, and buffer status using CMCD v2 (Request, Response or Event mode). In response, a CDN or third-party server will provide the synchronization latency settings (latency and clock) using CMSD custom keys that the player should use to achieve the desired latency.
+
+It project includes:
 - A **server** built with Node.js and Express to manage the latency adjustments and Clock reference using CMCD v2 and CMSD as interface with the players
 - A webpage to configure the server parameters and monitor the latency across players
 - A Javascript plugin for video players that uses CMCD v2 to report latency and the server and adjust the palyer latency based on the CMSD data from the server 
@@ -25,6 +27,12 @@ The clients run a custom synchronization plugin to ensure synchronized media pla
 - **Global Sync Function**: The plugin adjusts playback rate based on the latency values received from the server. 
 - **Customization**: Diffrent algorihtms could be implemented based on the latency messrue, bitrate lader and buffer status (see the customization chapter).
  
+### HLS content requirements
+It's crucial that the HLS manifest includes `#EXT-X-PROGRAM-DATE-TIME` (PDT) tags associated with the segments.For example, the `HlsSyncAdapter` uses `hls.playingDate.getTime()` to get the current playback time in wall-clock terms. The accuracy of hls.playingDate directly depends on the presence and accuracy of the PDT tags in the manifest. Without them, the calculation of the player's current latency will be compromised.
+
+### MPEG-DASH content requirements
+The MPD must include the `availabilityStartTime` attribute in the root `<MPD>` element. This attribute defines the temporal anchor point (in wall-clock time) for the live stream. The `DashSyncAdapter` and `DashConfigSyncAdapter` use this value, along with the player's relative playback time (`player.time()`), to calculate the current playback time in wall-clock terms, which is essential for determining latency.
+
 ## How to Run
 
 ### Prerequisites

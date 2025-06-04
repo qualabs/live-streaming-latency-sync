@@ -354,8 +354,14 @@ class DashSyncAdapter extends SyncAdapter {
 // Class: DashConfigSyncAdapter
 // Purpose: A variant of the Dash.js adapter that uses the target latency received 
 // from the server (cmsd.latency) to directly configure Dash.js's liveDelay 
-// property and enable its internal liveCatchup mechanism.
-// Note: This adapter will turn on dash.js CMCD v2 implementation
+// property and enable its internal liveCatchup mechanism. This approach is likely 
+// more compatible and effective with LL-DASH. It allows Dash.js to leverage all its 
+// internal low-latency optimizations (informed by the LL-DASH elements in the MPD) 
+// to achieve the liveDelay specified by the plugin (which, in turn, comes from the server). 
+// The plugin delegates the "how to get to" the target latency to the player, which is beneficial for LL-DASH.
+// Notes: 
+//    - This adapter will turn on dash.js CMCD v2 implementation
+//    - startSynchronization will do nothing if this adapter is used as it uses the internal dash.js logic.
 // Inheritance: Extends SyncAdapter.
 class DashConfigSyncAdapter extends SyncAdapter {
     constructor(dashInstance, videoElement) {
