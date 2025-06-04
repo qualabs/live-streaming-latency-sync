@@ -182,8 +182,9 @@ class SyncAdapter {
 
 // Class: HlsSyncAdapter
 // Purpose: Adapts the synchronization logic for HLS.js. It implements 
-// request/response interception to add CMCD 
-// (Common Media Client Data) and process CMSD (Common Media Server Data).
+// request/response interception to add CMCD (Common Media Client Data) 
+// and process CMSD (Common Media Server Data) when HLS.js is configured 
+// to send CMCD data.
 // Note: This Adapter needs CMCD enabled in the player configuration.
 // Inheritance: Extends SyncAdapter.
 class HlsSyncAdapter extends SyncAdapter {
@@ -195,8 +196,30 @@ class HlsSyncAdapter extends SyncAdapter {
     // intercept(xhr, url): Intercepts XHR requests (used by HLS.js). 
     // It appends CMCD parameters (ltc, ts, pt, pr), initiates clock 
     // synchronization, sends data to the server (/sync), and processes 
-    // the CMSD response to update the target latency and latency 
+    // the CMSD response to update the target latency and latency
     // targets, then finalizes clock synchronization.
+    //
+    // When HLS.js is configured with CMCD v1 enabled (e.g., `cmcd: { enabled: true, version: 1, ... }`),
+    // this `intercept` method should be called from the `xhrSetup` callback in the HLS.js config.
+    //
+    // Example HLS.js setup:
+    //   const hls = new Hls({
+    //     cmcd: {
+    //       enabled: true,
+    //       sessionId: 'your-session-id', // Make sure to provide a session ID
+    //       contentId: 'your-content-id',
+    //       version: 1
+    //     },
+    //     xhrSetup: function(xhr, url) {
+    //       // Ensure syncAdapter is initialized before HLS.js makes requests
+    //       if (window.syncAdapter && typeof window.syncAdapter.intercept === 'function') {
+    //         // Call intercept asynchronously to avoid blocking HLS.js internal operations
+    //         setTimeout(() => {
+    //           window.syncAdapter.intercept(xhr, url);
+    //         }, 0);
+    //       }
+    //     }
+    //   });
     async intercept(xhr, url) {
         let parsedUrl = new URL(url);
         let cmcdParam = parsedUrl.searchParams.get('CMCD');
