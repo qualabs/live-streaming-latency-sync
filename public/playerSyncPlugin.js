@@ -457,44 +457,83 @@ function createPlayerSyncAdapter(playerType, playerInstance, videoElement) {
     throw new Error('Player not supported: ' + playerType);
 }
 
+// Default configuration for the synchronization logic
+const defaultPlayerSyncConfig = {
+    intervalMs: 100, // Interval for checking and adjusting playback, in milliseconds.
+    deadZoneSecs: 0.005, // If |liveSyncDifference| is less than this, playback rate is set to 1. In seconds.
+    // Rules for speeding up playback when the client is behind the target latency.
+    // Sorted by threshold (ascending). 'threshold' is the max liveSyncDifference (in seconds) for this rate.
+    catchUpRules: [
+        { threshold: 0.1, playbackRate: 1.01 }, // If behind by 0s to 0.1s
+        { threshold: 0.4, playbackRate: 1.1 },  // If behind by >0.1s to 0.4s
+        { threshold: Infinity, playbackRate: 2.0 } // If behind by >0.4s
+    ],
+    // Rules for slowing down playback when the client is ahead of the target latency.
+    // Sorted by threshold (descending, i.e., from less negative to more negative).
+    // 'threshold' is the min liveSyncDifference (in seconds) for this rate.
+    slowDownRules: [
+        { threshold: -0.1, playbackRate: 0.99 }, // If ahead by 0s to 0.1s (liveSyncDifference is -0.1 to 0)
+        { threshold: -0.4, playbackRate: 0.90 }, // If ahead by >0.1s to 0.4s (liveSyncDifference is -0.4 to -0.1)
+        { threshold: -Infinity, playbackRate: 0.5 } // If ahead by >0.4s (liveSyncDifference is < -0.4)
+    ]
+};
+
 // Function: startSynchronization
 // Purpose: Initiates the playback synchronization loop for a given adapter. 
 // This loop adjusts the video's playback rate (adapter.setPlaybackRate) based 
 // on the difference between the current latency and the target 
 // latency (adapter.getLiveSyncDifference).
-function startSynchronization(adapter) {
+// Parameters:
+// - adapter: The sync adapter instance.
+// - userConfig (optional): An object to override default synchronization parameters.
+//   - intervalMs (number): Interval for sync checks in milliseconds.
+//   - deadZoneSecs (number): Latency difference threshold below which no action is taken.
+//   - catchUpRules (array): Rules for speeding up. Each rule: { threshold: number, playbackRate: number }.
+//   - slowDownRules (array): Rules for slowing down. Each rule: { threshold: number, playbackRate: number }.
+function startSynchronization(adapter, userConfig = {}) {
     if (adapter instanceof DashConfigSyncAdapter) {
+        console.log('startSynchronization: DashConfigSyncAdapter detected, skipping playback rate adjustments as Dash.js handles catchup.');
         return;
     }
+
+    const config = {
+        ...defaultPlayerSyncConfig,
+        ...userConfig,
+        // Ensure arrays are fully replaced if provided, not shallow merged.
+        catchUpRules: userConfig.catchUpRules ? [...userConfig.catchUpRules] : [...defaultPlayerSyncConfig.catchUpRules],
+        slowDownRules: userConfig.slowDownRules ? [...userConfig.slowDownRules] : [...defaultPlayerSyncConfig.slowDownRules],
+    };
 
     setInterval(() => {
         if (adapter.getPlaying()) {
             const liveSyncDifference = adapter.getLiveSyncDifference();
-            if (!liveSyncDifference) return;
+            // liveSyncDifference can be null if target latency or playhead time is not available yet.
+            if (liveSyncDifference === null || liveSyncDifference === undefined) {
+                return;
+            }
 
-            if (Math.abs(liveSyncDifference) < 0.005) {
+            if (Math.abs(liveSyncDifference) < config.deadZoneSecs) {
                 adapter.setPlaybackRate(1);
                 return;
             }
-            if (liveSyncDifference > 0) {
-                if (liveSyncDifference <= 0.1) {
-                    adapter.setPlaybackRate(1.01);
-                } else if (liveSyncDifference <= 0.4) {
-                    adapter.setPlaybackRate(1.1);
-                } else {
-                    adapter.setPlaybackRate(2);
+
+            if (liveSyncDifference > 0) { // Client is behind, speed up
+                for (const rule of config.catchUpRules) {
+                    if (liveSyncDifference <= rule.threshold) {
+                        adapter.setPlaybackRate(rule.playbackRate);
+                        return;
+                    }
                 }
-            } else {
-                if (liveSyncDifference >= -0.1) {
-                    adapter.setPlaybackRate(0.99);
-                } else if (liveSyncDifference >= -0.4) {
-                    adapter.setPlaybackRate(0.9);
-                } else {
-                    adapter.setPlaybackRate(0.5);
+            } else { // Client is ahead (liveSyncDifference < 0), slow down
+                for (const rule of config.slowDownRules) {
+                    if (liveSyncDifference >= rule.threshold) {
+                        adapter.setPlaybackRate(rule.playbackRate);
+                        return;
+                    }
                 }
             }
         }
-    }, 100);
+    }, config.intervalMs);
 }
 
 // Function: updateLatency
@@ -526,27 +565,15 @@ function parseCMSDHeader (cmsdHeader) {
     return { latency, latencyTargets, serverTime };
 }
 
-// TODO configs:
-// const defaultConfig = {
-//     liveMaxSync: 2,
-//     catchUp: {
-//         high: 2,
-//         medium: 0.4,
-//         low: 0.1 
-//     },
-//     url: `${window.location.origin}/sync`
-// };
-
-// function configurePlayerSyncPlugin(customConfig) {
-//     return { ...defaultConfig, ...customConfig };
-// }
-
-
 (() => {
     const playerSyncPlugin = {
         createPlayerSyncAdapter,
-        startSynchronization
-        // configure: configurePlayerSyncPlugin
+        startSynchronization,
+        // Expose default config for inspection or for users to base their custom configs on.
+        getDefaultSyncConfig: () => ({ ...defaultPlayerSyncConfig, 
+            catchUpRules: [...defaultPlayerSyncConfig.catchUpRules],
+            slowDownRules: [...defaultPlayerSyncConfig.slowDownRules]
+        })
     };
 
     if (typeof window !== 'undefined') {
