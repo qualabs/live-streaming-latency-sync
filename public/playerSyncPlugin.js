@@ -338,7 +338,6 @@ class DashSyncAdapter extends SyncAdapter {
             if (request.customData.request.type === 'CmcdResponse' &&
                 request.customData.request.url.startsWith(this._syncUrl)
             ) {
-                console.log(request)
                 const { cmcd } = request;
                 if (!cmcd) return Promise.resolve(request);
 
