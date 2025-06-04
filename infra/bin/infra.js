@@ -11,7 +11,16 @@ class FargateServiceStack extends cdk.Stack {
         super(scope, id, props);
 
         // Create the VPC
-        const vpc = new ec2.Vpc(this, "Vpc", { maxAzs: 2 });
+        const vpc = new ec2.Vpc(this, "Vpc", { 
+          maxAzs: 2, 
+          subnetConfiguration: [
+            {
+              cidrMask: 24,
+              name: "Public",
+              subnetType: ec2.SubnetType.PUBLIC
+            }
+          ]
+        });
 
         // Create the ECS cluster
         const cluster = new ecs.Cluster(this, "Cluster", { vpc });
@@ -31,7 +40,8 @@ class FargateServiceStack extends cdk.Stack {
               }),                
               containerPort: 3000
             },
-            publicLoadBalancer: true // Expose to the Internet
+            publicLoadBalancer: true, // Expose to the Internet
+            assignPublicIp: true
         });
 
         // Configure the listener on port 3000.
