@@ -147,3 +147,7 @@ function startMyCustomSynchronization(adapter, config = {}) {
         // TODO: Replace with your logic
     }, 100);
 ```
+
+## License
+
+This project is licensed under the Apache 2.0 License. See the `LICENSE` file for more details.
