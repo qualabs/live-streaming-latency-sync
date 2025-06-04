@@ -300,6 +300,7 @@ class DashSyncAdapter extends SyncAdapter {
     constructor(dashInstance, videoElement) {
         super(videoElement);
         this.dash = dashInstance;
+        this._syncUrl = `${window.location.origin}/sync`;
 
         // Configures Dash.js to use CMCD v2 in query and response mode, targeting 
         // the /sync endpoint. It disables Dash.js's internal liveCatchup and 
@@ -321,7 +322,7 @@ class DashSyncAdapter extends SyncAdapter {
                         enabled: true,
                         cmcdMode: 'response',
                         mode: 'query',
-                        url: `${window.location.origin}/sync`,
+                        url: this._syncUrl,
                         method: 'POST',
                     }],
                 }
@@ -331,37 +332,50 @@ class DashSyncAdapter extends SyncAdapter {
         // Configures addRequestInterceptor to add CMCD v2 custom keys (com.svta-latency) 
         // to the request URL and initiate clock synchronization.
         this.dash.addRequestInterceptor((request) => {
-            const { cmcd } = request;
-            if (!cmcd) return Promise.resolve(request);
+            // Only apply if the request is a CmcdResponse and the URL starts with the sync URL.
+            // This is very important to start the Clock sync only for requests that we know
+            // we will have a clock response
+            if (request.customData.request.type === 'CmcdResponse' &&
+                request.customData.request.url.startsWith(this._syncUrl)
+            ) {
+                console.log(request)
+                const { cmcd } = request;
+                if (!cmcd) return Promise.resolve(request);
 
-            //TODO: Add Playhead time, remove this code when CMCD v2 is supported with this key
-            cmcd['pt'] = this.getPlayheadTime().toFixed(0);
-            request.url += encodeURIComponent(',pt=' + cmcd['pt']);
-            
-            const latencyTarget = this.getTargetLatency();  
-            if (cmcd && latencyTarget) {
-                cmcd['com.svta-latency'] = latencyTarget;
-                request.url += encodeURIComponent(`,com.svta-latency="${cmcd['com.svta-latency']}"`);
+                //TODO: Add Playhead time, remove this code when CMCD v2 is supported with this key
+                cmcd['pt'] = this.getPlayheadTime().toFixed(0);
+                request.url += encodeURIComponent(',pt=' + cmcd['pt']);
+                
+                const latencyTarget = this.getTargetLatency();  
+                if (cmcd && latencyTarget) {
+                    cmcd['com.svta-latency'] = latencyTarget;
+                    request.url += encodeURIComponent(`,com.svta-latency="${cmcd['com.svta-latency']}"`);
+                }
+                // Clock Sync start
+                this.startClockSync()
             }
-
-            // Clock Sync start
-            this.startClockSync()
-
             return Promise.resolve(request);
         });
     
         // Configures addResponseInterceptor to process the cmsd-dynamic header, 
         // finalize clock synchronization, and update the target latency and latency targets.
         this.dash.addResponseInterceptor((response) => {
-            const cmcsdHeader = response.headers['cmsd-dynamic'];
-            if (!cmcsdHeader) return Promise.resolve(response);
+            // Only apply if the response is a CmcdResponse and the URL starts with the sync URL.
+            // This is very important to end the Clock sync only for requests that we know
+            // we will have a clock response
+            const request = response.request.customData.request
+            if (request.type === 'CmcdResponse' &&
+                request.url.startsWith(this._syncUrl)
+            ) {            
+                const cmcsdHeader = response.headers['cmsd-dynamic'];
+                if (!cmcsdHeader) return Promise.resolve(response);
 
-            // Update values and end clock sync
-            const cmsd = parseCMSDHeader(cmcsdHeader);
-            this.endClockSync(cmsd.serverTime)
-            this.setTargetLatency(cmsd.latency);
-            this.setLatencyTargets(cmsd.latencyTargets)
-
+                // Update values and end clock sync
+                const cmsd = parseCMSDHeader(cmcsdHeader);
+                this.endClockSync(cmsd.serverTime)
+                this.setTargetLatency(cmsd.latency);
+                this.setLatencyTargets(cmsd.latencyTargets)
+            }
             return Promise.resolve(response);
         });     
     }
