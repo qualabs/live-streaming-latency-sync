@@ -1,6 +1,6 @@
 # Global playback synchronization for HLS and MPEG-DASH live content
 
-To enable a synchronization mechanism for live HLS and MPEG-DASH content using standard and open tools, this project proposes a method leveraging CMCD and CMSD, along with some custom keys.
+To enable a synchronization mechanism for live HLS and MPEG-DASH content using standard and open tools, this project proposes a method leveraging CMCD v2 (Common Media Client Data) and CMSD (Common Media Server Data), along with some custom keys.
 
 Essentially, players will report their playhead time, latency, and buffer status using CMCD v2 (Request, Response or Event mode). In response, a CDN or third-party server will provide the synchronization latency settings (latency and clock) using CMSD custom keys that the player should use to achieve the desired latency.
 
