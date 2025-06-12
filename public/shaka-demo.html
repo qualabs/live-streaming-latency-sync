@@ -80,6 +80,22 @@
                     console.error('Error loading asset:', error);
                 }
             });
+
+            // Check for URL query parameters
+            const queryParams = new URLSearchParams(window.location.search);
+            const urlParam = queryParams.get('url');
+            const autoplayParam = queryParams.has('autoplay');
+
+            if (urlParam) {
+                customUrl.value = urlParam;
+                urlSelect.value = 'custom';
+                customUrl.disabled = false;
+            }
+
+            if (autoplayParam) {
+                loadButton.click();
+            }            
+
         }
 
         document.addEventListener('DOMContentLoaded', function () {
