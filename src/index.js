@@ -6,8 +6,10 @@ const app = express();
 
 
 const PORT = process.env.PORT || 3000;
+const DEFALUT_LATENCY_TARGETS = process.env.LATENCY_TARGETS || '3,6,9';
 const DEFALUT_LATENCY_TARGET = process.env.LATENCY_TARGET || '12';
 
+let latencyTargets = DEFALUT_LATENCY_TARGETS;
 let latencyTarget = DEFALUT_LATENCY_TARGET;
 
 app.use(express.json());
@@ -43,7 +45,7 @@ app.get('/sync', (req, res) => {
 
   //CHANGEME: Set the latency target based on the CMCD data and business logic
   // const playerCurrentLatencyTarget = cmcdData['com.svta-latency']
-  const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-time="${new Date().getTime()}"`;
+  const CMSDDynamicValue = `com.svta-latency="${latencyTarget}",com.svta-latency-targets="${latencyTargets}",com.svta-time="${new Date().getTime()}"`;
   res.setHeader('Cmsd-Dynamic',CMSDDynamicValue);
   // console.log("Sending CMSD Dynamic Header:", CMSDDynamicValue);
   //CHANGEME: End
@@ -65,25 +67,28 @@ app.get('/clear-player-data', (req, res) => {
 });
 
 app.post('/update-latency', (req, res) => {
-  // Update latencyTarget based on request body
-  if (req.body.latencyTarget) {
+  // Update latencyTarget and latencyTargets based on request body
+  if (req.body.latencyTarget && req.body.latencyTargets) {
     latencyTarget = req.body.latencyTarget;
-    console.log(`Updated latencyTarget to ${latencyTarget}`);
+    latencyTargets = req.body.latencyTargets;
+    console.log(`Updated latencyTarget to ${latencyTarget} and latencyTargets to ${latencyTargets}`);
     res.json({ 
-      message: 'latencyTarget', 
-      latency: latencyTarget,
+      message: 'latencyTarget and latencyTargets updated', 
+      latency: latencyTarget, 
+      latencyTargets: latencyTargets 
     });
   } else {
     // Handle missing parameters
-    res.status(400).json({ error: 'Missing latencyTarget' });
+    res.status(400).json({ error: 'Missing latencyTarget and/or latencyTargets parameter in request body' });
   }
 });
 
 app.get('/get-latency', (req, res) => {
-  // Get latencyTarget based on request body
+  // Get latencyTarget and latencyTargets based on request body
   res.json({ 
-    message: 'latencyTarget', 
+    message: 'latencyTarget and latencyTargets updated', 
     latency: latencyTarget, 
+    latencyTargets: latencyTargets 
   });
 });
 

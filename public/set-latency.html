@@ -59,6 +59,12 @@ Notice: This web page was generated using Gemini 2.5 Pro
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="Loading...">
             </div>
+            <div>
+                <label for="latencyTargets" class="block text-sm font-medium text-gray-700 mb-1">Latency Targets (e.g., 3,6,9):</label>
+                <input type="text" id="latencyTargets" name="latencyTargets" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Loading...">
+            </div>
             <button type="submit"
                 class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                 Update Latency
@@ -87,6 +93,7 @@ Notice: This web page was generated using Gemini 2.5 Pro
         const form = document.getElementById('latency-form');
         const clearDataForm = document.getElementById('clear-data-form');
         const latencyTargetInput = document.getElementById('latencyTarget');
+        const latencyTargetsInput = document.getElementById('latencyTargets');
         const messageArea = document.getElementById('message-area');
 
         const updateUrl = '/update-latency';
@@ -117,11 +124,13 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 const result = await response.json();
 
                 // Check if the request was successful
-                if (response.ok && result.latency !== undefined) {
+                if (response.ok && result.latency !== undefined && result.latencyTargets !== undefined) {
                     // Populate the input fields with the fetched values
                     latencyTargetInput.value = result.latency;
+                    latencyTargetsInput.value = result.latencyTargets;
                     // Optionally clear placeholder or display a success message
                     latencyTargetInput.placeholder = "Enter single target value";
+                    latencyTargetsInput.placeholder = "Enter comma-separated targets";
                     console.log('Initial values loaded:', result);
                 } else {
                     // Handle server-side errors or missing data
@@ -129,6 +138,7 @@ Notice: This web page was generated using Gemini 2.5 Pro
                     displayMessage(`Failed to load initial values: ${errorMsg}`, 'error');
                     // Reset placeholders on error
                     latencyTargetInput.placeholder = "Enter single target value";
+                    latencyTargetsInput.placeholder = "Enter comma-separated targets";
                 }
             } catch (error) {
                 // Handle network errors
@@ -136,6 +146,7 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 displayMessage(`Failed to connect to the server to load initial values. Is it running at ${getUrl}? Error: ${error.message}`, 'error');
                  // Reset placeholders on error
                 latencyTargetInput.placeholder = "Enter single target value";
+                latencyTargetsInput.placeholder = "Enter comma-separated targets";
             }
         }
 
@@ -143,14 +154,19 @@ Notice: This web page was generated using Gemini 2.5 Pro
             event.preventDefault();
             messageArea.innerHTML = '';
             const latencyTarget = latencyTargetInput.value.trim();
+            const latencyTargets = latencyTargetsInput.value.trim();
 
-            if (!latencyTarget) {
+            if (!latencyTarget || !latencyTargets) {
                 displayMessage('Please fill in both fields.', 'error');
                 return;
             }
 
             const data = {
                 latencyTarget: latencyTarget,
+                // Assuming server expects latencyTargets as a string or an array.
+                // If string: latencyTargets: latencyTargets
+                // If array: latencyTargets: latencyTargets.split(',').map(s => s.trim()).filter(s => s)
+                latencyTargets: latencyTargets, // Send as string, server can parse
             };
 
             try {
@@ -162,8 +178,8 @@ Notice: This web page was generated using Gemini 2.5 Pro
                 const result = await response.json();
                 if (response.ok) {
                     let successMsg = result.message || 'Latency updated successfully.';
-                    if (result.latency) {
-                        successMsg += ` New Target: ${result.latency}`;
+                    if (result.latency && result.latencyTargets) {
+                        successMsg += ` New Target: ${result.latency}, New Targets: ${Array.isArray(result.latencyTargets) ? result.latencyTargets.join(', ') : result.latencyTargets}`;
                     }
                     displayMessage(successMsg, 'success');
                 } else {

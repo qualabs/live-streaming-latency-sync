@@ -45,7 +45,7 @@
         <div class="row margin-top-row">
             <div class="col-md-12">
                 <div class="h-100 p-5 border rounded-3">
-                    <h5 id="player-title"> Player SessionId</h5>
+                    <h5> Player 1</h5>
                     <div class="code">
                         <video id="video" controls muted></video>
                         <div>
@@ -81,20 +81,13 @@
         let adapter = null;
         let sessionId = crypto.randomUUID();
         let currentUrl = '';
-
         const loadButton = document.getElementById('load-button');
         const urlSelect = document.getElementById('url-select');
         const customUrl = document.getElementById('custom-url');
-        const playerTitleElement = document.getElementById('player-title');
 
         // Setup the metrics display
         setupMetrics();
         setupChart('metric-chart-player');
-
-        // Set initial player title with a session ID
-        if (playerTitleElement) {
-            playerTitleElement.textContent = `Player SessionId (${sessionId})`;
-        }
 
         urlSelect.addEventListener('change', () => {
           if (urlSelect.value === 'custom') {
@@ -113,12 +106,6 @@
             hls = null;
           }
           sessionId = crypto.randomUUID();
-
-          // Update player title with the new session ID
-          if (playerTitleElement) {
-            playerTitleElement.textContent = `Player (${sessionId})`;
-          }
-
           hls = new Hls({
             cmcd: {
               enabled: true,
