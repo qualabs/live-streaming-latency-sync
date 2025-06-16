@@ -54,6 +54,11 @@
                     contentId: 'sync-content',
                 }
             });
+
+            const playerTitleElement = document.getElementById('player-title');
+            if (playerTitleElement) {
+                playerTitleElement.textContent = `Player SessionId (${sessionId})`;
+            }
             
             const loadButton = document.getElementById('load-button');
             const urlSelect = document.getElementById('url-select');
@@ -122,7 +127,7 @@
         <div class="row margin-top-row">
             <div class="col-md-12">
                 <div class="h-100 p-5 border rounded-3">
-                    <h5> Player 1</h5>
+                    <h5 id="player-title"> Player SessionId</h5>
                     <div class="code">
                         <video id="video1" controls="true" muted></video>
                         <div>                           
